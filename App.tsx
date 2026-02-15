@@ -268,7 +268,8 @@ const App: React.FC = () => {
           <div className="space-y-12 py-12 animate-in fade-in duration-500">
             <div className="text-center space-y-4">
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
-                Évaluez la robustesse <br className="hidden md:block"/>
+                Mesurez la robustesse <br className="hidden md:block"/>
+                de vos évaluations <br className="hidden md:block"/>
                 <span className="text-indigo-600">à l'ère de l'IA générative</span>
               </h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
