@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppStep, AuditResult, VulnerabilityStatus } from './types';
 import { auditConsigne } from './services/gemini';
 import { FICHES } from './constants';
@@ -14,7 +14,10 @@ const App: React.FC = () => {
     processus: ''
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
-  const [portfolio, setPortfolio] = useState<AuditResult[]>([]);
+  const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
+    const saved = localStorage.getItem('compagnon_portfolio');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +34,11 @@ const App: React.FC = () => {
     "Un·e apprenant·e pourrait-il·elle obtenir une note satisfaisante sans pouvoir expliquer oralement ses choix ?",
     "Vos collègues utilisent-ils·elles des consignes identiques ou très similaires d'une session à l'autre ?"
   ];
+
+  // Sauvegarde automatique du portefeuille
+  useEffect(() => {
+    localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
+  }, [portfolio]);
 
   const handleAuditSubmit = async () => {
     setLoading(true);
@@ -56,7 +64,7 @@ const App: React.FC = () => {
       };
 
       setCurrentResult(result);
-      setPortfolio(prev => [...prev, result]);
+      setPortfolio(prev => [result, ...prev]);
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Submit Error:", err);
@@ -80,6 +88,17 @@ const App: React.FC = () => {
     };
     navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
     alert("Copié dans le presse-papier !");
+  };
+
+  const clearPortfolio = () => {
+    if (window.confirm("Voulez-vous vraiment supprimer tous les audits enregistrés ?")) {
+      setPortfolio([]);
+    }
+  };
+
+  const deleteAudit = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setPortfolio(prev => prev.filter(a => a.id !== id));
   };
 
   const handleQuickTestAnswer = (score: number) => {
@@ -112,6 +131,7 @@ const App: React.FC = () => {
         date: new Date().toLocaleDateString('fr-FR')
       };
       setCurrentResult(mockResult);
+      setPortfolio(prev => [mockResult, ...prev]);
       setStep(AppStep.AUDIT_RESULT);
     }
   };
@@ -137,7 +157,7 @@ const App: React.FC = () => {
           <nav className="flex items-center gap-4">
              <button 
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
-              className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+              className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
              >
               Portefeuille ({portfolio.length})
              </button>
@@ -284,25 +304,45 @@ const App: React.FC = () => {
 
         {step === AppStep.PORTFOLIO && (
           <div className="space-y-8">
-            <h2 className="text-3xl font-extrabold">Portefeuille d'audits</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-extrabold">Portefeuille d'audits</h2>
+              {portfolio.length > 0 && (
+                <button onClick={clearPortfolio} className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1">
+                  Vider tout
+                </button>
+              )}
+            </div>
             {portfolio.length === 0 ? (
-               <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">Aucun audit enregistré.</div>
+               <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
+                  <p className="mb-4">Aucun audit enregistré pour le moment.</p>
+                  <button onClick={() => setStep(AppStep.WELCOME)} className="text-indigo-600 font-bold hover:underline">Lancer un premier test</button>
+               </div>
             ) : (
               <div className="grid gap-4">
                 {portfolio.map(item => (
-                  <div key={item.id} onClick={() => { setCurrentResult(item); setStep(AppStep.AUDIT_RESULT); }} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-600 transition-all flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold">{item.title}</h4>
+                  <div key={item.id} onClick={() => { setCurrentResult(item); setStep(AppStep.AUDIT_RESULT); }} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-600 transition-all flex justify-between items-center group relative">
+                    <div className="flex-1 mr-4">
+                      <h4 className="font-bold text-slate-800 line-clamp-1">{item.title}</h4>
                       <p className="text-xs text-slate-400">{item.date}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(item.statut)}`}>{item.statut}</span>
-                      <span className="font-black text-indigo-600 text-xl">{item.score_total}</span>
+                      <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(item.statut)}`}>{item.statut}</span>
+                      <span className="font-black text-indigo-600 text-xl w-8 text-center">{item.score_total}</span>
+                      <button 
+                        onClick={(e) => deleteAudit(e, item.id)}
+                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                        title="Supprimer cet audit"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+            <div className="pt-8 flex justify-center">
+               <button onClick={() => setStep(AppStep.WELCOME)} className="px-6 py-2 bg-indigo-600 text-white rounded-full font-bold shadow-lg hover:bg-indigo-700">Nouveau diagnostic</button>
+            </div>
           </div>
         )}
 
@@ -312,7 +352,7 @@ const App: React.FC = () => {
               <div className="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all" style={{ width: `${(quickTestIndex / quickTestQuestions.length) * 100}%` }} />
               <div className="mb-8">
                 <span className="text-indigo-600 font-bold text-xs tracking-widest uppercase">Question {quickTestIndex + 1}/{quickTestQuestions.length}</span>
-                <h2 className="text-2xl font-bold mt-2">{quickTestQuestions[quickTestIndex]}</h2>
+                <h2 className="text-2xl font-bold mt-2 leading-snug">{quickTestQuestions[quickTestIndex]}</h2>
               </div>
               <div className="space-y-3">
                 {[{l: "Oui", s: 2}, {l: "Partiellement", s: 1}, {l: "Non", s: 0}].map(a => (

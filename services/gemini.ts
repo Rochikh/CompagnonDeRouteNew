@@ -70,3 +70,15 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
             "justifications"
           ]
         }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Réponse vide de l'IA générative.");
+    
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Gemini API Error details:", error);
+    throw error;
+  }
+}
