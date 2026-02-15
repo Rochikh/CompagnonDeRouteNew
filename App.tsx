@@ -5,6 +5,17 @@ import { auditConsigne, getSystemApiKey } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
 
+const QUICK_QUESTIONS = [
+  "Cette évaluation repose-t-elle sur une production écrite réalisée hors surveillance ?",
+  "La consigne pourrait-elle être copiée telle quelle dans un assistant IA pour obtenir un résultat recevable ?",
+  "L'évaluation mobilise-t-elle des données génériques accessibles en ligne (plutôt que locales/personnelles) ?",
+  "Le produit final est-il le seul objet évalué, sans trace du processus de production ?",
+  "L'évaluation se déroule-t-elle entièrement en mode asynchrone, sans interaction temps réel ?",
+  "Les critères d'évaluation portent-ils exclusivement sur le contenu (sans dimension réflexive) ?",
+  "Un apprenant pourrait-il obtenir une note satisfaisante sans pouvoir expliquer oralement ses choix ?",
+  "Vos collègues utilisent-ils des consignes identiques ou très similaires d'une session à l'autre ?"
+];
+
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [consigne, setConsigne] = useState('');
@@ -15,6 +26,9 @@ const App: React.FC = () => {
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
   
+  // State pour le Quick Test
+  const [quickAnswers, setQuickAnswers] = useState<Record<number, number>>({});
+
   // Gestion du Portefeuille
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
     try {
@@ -153,12 +167,38 @@ const App: React.FC = () => {
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 
-  // Helper pour la barre de progression
+  // Helper pour la barre de progression (Audit IA)
   const getProgressColor = (score: number) => {
     if (score >= 10) return 'bg-emerald-500';
     if (score >= 7) return 'bg-amber-500';
     if (score >= 4) return 'bg-orange-500';
     return 'bg-rose-500';
+  };
+
+  // Helper pour le Quick Test (Logique inversée : Score élevé = Vulnérable)
+  const getQuickTestResult = () => {
+    const score = Object.values(quickAnswers).reduce((a, b) => a + b, 0);
+    const answered = Object.keys(quickAnswers).length;
+    
+    let status = "";
+    let colorClass = "";
+    let advice = "";
+
+    if (score >= 10) {
+      status = "Vulnérabilité CRITIQUE";
+      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
+      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
+    } else if (score >= 5) {
+      status = "Vulnérabilité MODÉRÉE";
+      colorClass = "bg-amber-100 text-amber-800 border-amber-200";
+      advice = "Consultez les Fiches 1 à 4 pour des adaptations ciblées.";
+    } else {
+      status = "Robustesse ÉLEVÉE";
+      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
+    }
+
+    return { score, status, colorClass, advice, answered };
   };
 
   return (
@@ -511,12 +551,66 @@ const App: React.FC = () => {
         )}
 
         {step === AppStep.QUICK_TEST && (
-           <div className="max-w-2xl mx-auto py-12">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center">
-              <p className="text-slate-500 mb-4">Le diagnostic rapide n'utilise pas l'IA et ne nécessite pas de clé.</p>
-              <h2 className="text-2xl font-bold mb-4">Fonctionnalité simplifiée</h2>
-              {/* Contenu du quick test simplifié ici si besoin, ou retour à l'accueil */}
-               <button onClick={() => setStep(AppStep.WELCOME)} className="text-indigo-600 font-bold hover:underline">Retour</button>
+           <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+              <div className="text-center mb-10">
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">3 minutes chrono</span>
+                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">Diagnostic Rapide</h2>
+                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes en pensant à une évaluation précise. Le score de vulnérabilité se calcule automatiquement.</p>
+              </div>
+
+              <div className="space-y-6">
+                {QUICK_QUESTIONS.map((q, idx) => (
+                  <div key={idx} className="pb-6 border-b border-slate-100 last:border-0 animate-in fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
+                    <p className="font-medium text-slate-800 mb-3">{q}</p>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 2}))} 
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 2 ? 'bg-rose-100 border-rose-500 text-rose-700 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
+                      >
+                        Oui (+2)
+                      </button>
+                      <button 
+                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 1}))} 
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 1 ? 'bg-amber-100 border-amber-500 text-amber-700 ring-2 ring-amber-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
+                      >
+                        Partiellement (+1)
+                      </button>
+                      <button 
+                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 0}))} 
+                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 0 ? 'bg-emerald-100 border-emerald-500 text-emerald-700 ring-2 ring-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
+                      >
+                        Non (0)
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* RESULTAT EN TEMPS REEL */}
+            {getQuickTestResult().answered > 0 && (
+                <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de vulnérabilité</div>
+                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 répondue(s)</div>
+                    </div>
+                    <div className="flex items-center gap-4 mb-4">
+                        <span className="text-5xl font-black">{getQuickTestResult().score}</span>
+                        <div className="h-12 w-[1px] bg-current opacity-20"></div>
+                        <div>
+                            <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
+                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">Sur 16 points max</div>
+                        </div>
+                    </div>
+                    <p className="font-medium text-sm leading-relaxed border-t border-current border-opacity-20 pt-3 opacity-90">
+                        {getQuickTestResult().advice}
+                    </p>
+                </div>
+            )}
+            
+            <div className="text-center pt-8">
+               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">Retour à l'accueil</button>
             </div>
           </div>
         )}
