@@ -3,26 +3,31 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
 export async function auditConsigne(consigne: string, contextAnswers: any) {
-  // Initialisation du client avec la clé d'environnement
+  // On ré-initialise l'instance pour s'assurer d'avoir la clé à jour
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const prompt = `
-  ANALYSE DE CONSIGNE PEDAGOGIQUE :
-  "${consigne}"
+  const userPrompt = `
+AUDIT DE LA CONSIGNE SUIVANTE :
+"${consigne}"
 
-  CONTEXTE DE L'EVALUATION :
-  - Modalité de passage : ${contextAnswers.synchrone}
-  - Nature des données : ${contextAnswers.donnees}
-  - Évaluation du processus : ${contextAnswers.processus}
+INFORMATIONS CONTEXTUELLES FOURNIES PAR L'ENSEIGNANT·E :
+- Présence/Synchrone : ${contextAnswers.synchrone}
+- Nature des données : ${contextAnswers.donnees}
+- Évaluation du processus : ${contextAnswers.processus}
 
-  Instructions : Produire un audit pédagogique rigoureux au format JSON selon le schéma défini.
-  Assurez-vous que le score_total est bien la somme des 4 dimensions.
-  `;
+EXIGENCE : Produis un audit technique complet au format JSON.
+Le score_total doit être la somme exacte de : reproductibilite + contextualisation + tacitite + multimodalite (max 12).
+Le statut est déterminé par le score :
+- 10-12 : Robuste
+- 7-9 : Vulnérabilité modérée
+- 4-6 : Vulnérabilité élevée
+- 0-3 : Vulnérabilité critique
+`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview", // Passage sur le modèle Pro pour plus de fiabilité sur le raisonnement
-      contents: prompt, // Utilisation d'une chaîne directe pour plus de robustesse
+      model: "gemini-3-flash-preview", // Flash est plus rapide pour éviter le "spin" infini
+      contents: [{ parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
@@ -36,11 +41,12 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
             score_total: { type: Type.INTEGER },
             statut: { 
               type: Type.STRING, 
-              description: "Must be exactly: Robuste, Vulnérabilité modérée, Vulnérabilité élevée, or Vulnérabilité critique" 
+              description: "Valeur obligatoire : 'Robuste', 'Vulnérabilité modérée', 'Vulnérabilité élevée' ou 'Vulnérabilité critique'" 
             },
             points_vigilance: {
               type: Type.ARRAY,
-              items: { type: Type.STRING }
+              items: { type: Type.STRING },
+              description: "Liste des risques identifiés"
             },
             recommandations: {
               type: Type.ARRAY,
@@ -48,7 +54,7 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
                 type: Type.OBJECT,
                 properties: {
                   action: { type: Type.STRING },
-                  fiche: { type: Type.STRING }
+                  fiche: { type: Type.STRING, description: "Nom complet de la fiche, ex: 'Fiche 5 — Soutenance orale sans écrit préalable'" }
                 },
                 required: ["action", "fiche"]
               }
@@ -60,7 +66,8 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
                 contextualisation: { type: Type.STRING },
                 tacitite: { type: Type.STRING },
                 multimodalite: { type: Type.STRING }
-              }
+              },
+              required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite"]
             }
           },
           required: [
@@ -78,25 +85,16 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
       }
     });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("Le moteur d'IA n'a pas renvoyé de contenu.");
+    const resultText = response.text;
+    if (!resultText) {
+      throw new Error("L'IA n'a retourné aucune réponse.");
     }
-    
-    // Nettoyage éventuel si l'IA a inclus des backticks markdown (bien que responseMimeType: "application/json" l'empêche normalement)
-    const jsonStr = text.replace(/```json\n?|\n?```/g, "").trim();
+
+    // On s'assure que c'est du JSON pur (certains modèles peuvent ajouter des délimiteurs malgré la config)
+    const jsonStr = resultText.replace(/```json\n?|\n?```/g, "").trim();
     return JSON.parse(jsonStr);
   } catch (error: any) {
-    console.error("Erreur détaillée de l'API Gemini:", error);
-    
-    // Gestion spécifique des erreurs courantes
-    if (error.message?.includes("API key")) {
-      throw new Error("Clé API invalide ou manquante.");
-    }
-    if (error.message?.includes("safety")) {
-      throw new Error("Le contenu a été bloqué par les filtres de sécurité.");
-    }
-    
-    throw new Error(error.message || "Erreur de communication avec l'IA.");
+    console.error("Gemini API Error:", error);
+    throw new Error(error.message || "Erreur lors de l'analyse. Vérifiez votre connexion.");
   }
 }

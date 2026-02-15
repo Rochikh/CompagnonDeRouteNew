@@ -49,6 +49,7 @@ const App: React.FC = () => {
     setError(null);
     
     try {
+      // Time-out de sécurité pour le UI
       const data = await auditConsigne(consigne, contextAnswers);
       
       const result: AuditResult = {
@@ -61,7 +62,7 @@ const App: React.FC = () => {
         tacitite: data.tacitite ?? 0,
         multimodalite: data.multimodalite ?? 0,
         score_total: data.score_total ?? 0,
-        statut: data.statut as VulnerabilityStatus,
+        statut: (data.statut as VulnerabilityStatus) || VulnerabilityStatus.MODEREE,
         points_vigilance: data.points_vigilance ?? [],
         recommandations: data.recommandations ?? [],
         justifications: data.justifications || {},
@@ -72,9 +73,8 @@ const App: React.FC = () => {
       setPortfolio(prev => [result, ...prev]);
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
-      console.error("Erreur Application:", err);
-      // On affiche le message d'erreur technique pour aider au diagnostic
-      setError(`Désolé·e, l'analyse a échoué : ${err.message || "Erreur inconnue"}. Réessayez avec une consigne plus courte ou vérifiez votre connexion.`);
+      console.error("Application catch:", err);
+      setError(err.message || "Une erreur inattendue est survenue.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ const App: React.FC = () => {
   const copyAsJson = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
-    alert("Copié !");
+    alert("Copié dans le presse-papier !");
   };
 
   const clearPortfolio = () => {
@@ -131,7 +131,7 @@ const App: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: VulnerabilityStatus | string) => {
+  const getStatusColor = (status: string) => {
     const s = (status || "").toLowerCase();
     if (s.includes('robuste')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (s.includes('modérée')) return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -163,12 +163,13 @@ const App: React.FC = () => {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm font-medium flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-            <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <div className="flex flex-col">
-              <span className="font-bold">Erreur d'analyse</span>
-              <span className="opacity-90">{error}</span>
+          <div className="mb-6 p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-center gap-3 mb-2">
+              <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <h3 className="font-bold text-lg">L'analyse a rencontré un problème</h3>
             </div>
+            <p className="text-sm opacity-90 leading-relaxed mb-4">{error}</p>
+            <button onClick={() => setError(null)} className="text-xs font-bold uppercase tracking-wider bg-rose-200 px-4 py-2 rounded-lg hover:bg-rose-300 transition-colors">Masquer</button>
           </div>
         )}
 
@@ -185,12 +186,12 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
-              <button onClick={() => { setStep(AppStep.AUDIT_INPUT); setError(null); }} className="p-8 bg-white border border-slate-200 rounded-2xl text-left hover:border-indigo-600 transition-all group shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Audit détaillé</h3>
+              <button onClick={() => { setStep(AppStep.AUDIT_INPUT); setError(null); }} className="p-8 bg-white border border-slate-200 rounded-2xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-md">
+                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">Audit détaillé</h3>
                 <p className="text-slate-500">Analysez une consigne précise sur 4 dimensions critiques avec l'IA.</p>
               </button>
-              <button onClick={() => { setQuickTestIndex(0); setQuickTestScores([]); setStep(AppStep.QUICK_TEST); setError(null); }} className="p-8 bg-white border border-slate-200 rounded-2xl text-left hover:border-indigo-600 transition-all group shadow-sm">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Diagnostic rapide</h3>
+              <button onClick={() => { setQuickTestIndex(0); setQuickTestScores([]); setStep(AppStep.QUICK_TEST); setError(null); }} className="p-8 bg-white border border-slate-200 rounded-2xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-md">
+                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">Diagnostic rapide</h3>
                 <p className="text-slate-500">8 questions pour évaluer votre profil de vulnérabilité sans IA.</p>
               </button>
             </div>
@@ -205,9 +206,9 @@ const App: React.FC = () => {
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
                 placeholder="Rédigez ou collez ici la consigne de votre évaluation..."
-                className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
               />
-              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-[0.99]">
+              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-[0.99] shadow-lg shadow-indigo-100">
                 Suivant : contexte
               </button>
             </div>
@@ -256,7 +257,7 @@ const App: React.FC = () => {
                   {loading ? (
                     <>
                       <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Analyse doctrinale en cours...
+                      Analyse en cours...
                     </>
                   ) : (
                     <>
