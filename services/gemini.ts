@@ -3,18 +3,19 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
 export async function auditConsigne(consigne: string, contextAnswers: any) {
+  // On initialise le client directement avec la clé de l'environnement
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
-  Voici une consigne d'évaluation à auditer :
+  ANALYSE DE CONSIGNE :
   "${consigne}"
 
-  Réponses au contexte :
-  1. Composante synchrone : ${contextAnswers.synchrone}
-  2. Données mobilisées : ${contextAnswers.donnees}
-  3. Documentation du processus : ${contextAnswers.processus}
+  CONTEXTE :
+  - Modalité : ${contextAnswers.synchrone}
+  - Données : ${contextAnswers.donnees}
+  - Processus : ${contextAnswers.processus}
 
-  Réalise l'audit complet selon le protocole de Rochane Kherbouche. Utilise l'écriture inclusive.
+  Instructions : Produire un audit pédagogique rigoureux en format JSON.
   `;
 
   try {
@@ -73,18 +74,13 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
       }
     });
 
-    let text = response.text;
-    if (!text) throw new Error("Réponse vide de l'IA générative.");
-    
-    // Nettoyage de la chaîne JSON au cas où l'IA inclurait des backticks Markdown
-    text = text.trim();
-    if (text.startsWith("```")) {
-      text = text.replace(/^```(json)?\n?/, "").replace(/\n?```$/, "");
-    }
+    const text = response.text;
+    if (!text) throw new Error("Aucune réponse reçue du moteur d'analyse.");
     
     return JSON.parse(text);
-  } catch (error) {
-    console.error("Gemini API Error details:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("Détails de l'erreur Gemini:", error);
+    // On propage une erreur plus descriptive
+    throw new Error(error.message || "Erreur de communication avec l'IA.");
   }
 }

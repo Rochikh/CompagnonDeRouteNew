@@ -47,11 +47,9 @@ const App: React.FC = () => {
     if (loading) return;
     setLoading(true);
     setError(null);
-    console.log("Démarrage de l'audit pour la consigne:", consigne);
     
     try {
       const data = await auditConsigne(consigne, contextAnswers);
-      console.log("Données reçues de Gemini:", data);
       
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
@@ -74,8 +72,8 @@ const App: React.FC = () => {
       setPortfolio(prev => [result, ...prev]);
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
-      console.error("Submit Error:", err);
-      setError(`Erreur d'analyse : ${err.message || "Le service est temporairement indisponible."}`);
+      console.error("Erreur Application:", err);
+      setError(`L'analyse a échoué : ${err.message || "Vérifiez votre connexion et réessayez."}`);
     } finally {
       setLoading(false);
     }
@@ -164,7 +162,7 @@ const App: React.FC = () => {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm font-medium flex items-start gap-3">
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm font-medium flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
             <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             <span>{error}</span>
           </div>
@@ -203,9 +201,9 @@ const App: React.FC = () => {
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
                 placeholder="Rédigez ou collez ici la consigne de votre évaluation..."
-                className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
-              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all">
+              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-[0.99]">
                 Suivant : contexte
               </button>
             </div>
@@ -248,7 +246,7 @@ const App: React.FC = () => {
                   className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
                     isAuditButtonDisabled 
                       ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300' 
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg'
                   }`}
                 >
                   {loading ? (
@@ -258,7 +256,7 @@ const App: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      {isAuditButtonDisabled ? 'Veuillez répondre aux 3 questions' : "Lancer l'audit"}
+                      {isAuditButtonDisabled ? 'Répondez aux 3 questions' : "Lancer l'audit"}
                     </>
                   )}
                 </button>
@@ -270,7 +268,7 @@ const App: React.FC = () => {
         {step === AppStep.AUDIT_RESULT && currentResult && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-extrabold text-slate-900">Résultats de l'audit</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900">Résultats</h2>
               <button onClick={copyAsJson} className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center gap-1 border border-slate-200 px-3 py-1 rounded-lg transition-colors">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
                 Copier JSON
@@ -324,7 +322,7 @@ const App: React.FC = () => {
         {step === AppStep.PORTFOLIO && (
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-extrabold text-slate-900">Portefeuille d'audits</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900">Portefeuille</h2>
               {portfolio.length > 0 && (
                 <button onClick={clearPortfolio} className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors">
                   Vider tout
