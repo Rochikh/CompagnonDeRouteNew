@@ -153,6 +153,14 @@ const App: React.FC = () => {
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 
+  // Helper pour la barre de progression
+  const getProgressColor = (score: number) => {
+    if (score >= 10) return 'bg-emerald-500';
+    if (score >= 7) return 'bg-amber-500';
+    if (score >= 4) return 'bg-orange-500';
+    return 'bg-rose-500';
+  };
+
   return (
     <div className="min-h-screen pb-20 relative">
       {/* MODAL CONFIGURATION CLE API */}
@@ -394,9 +402,33 @@ const App: React.FC = () => {
                   tacitite: currentResult.tacitite,
                   multimodalite: currentResult.multimodalite
                 }} />
-                <div className="mt-8 text-center space-y-2">
-                  <div className={`px-5 py-1.5 rounded-full text-xs font-black border uppercase tracking-wider ${getStatusColor(currentResult.statut)}`}>{currentResult.statut}</div>
-                  <div className="text-6xl font-black text-slate-900">{currentResult.score_total}<span className="text-2xl text-slate-300 font-bold">/12</span></div>
+                
+                <div className="mt-8 w-full max-w-xs space-y-3 text-center">
+                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Indice de Robustesse</h4>
+                    
+                    {/* Grand Score */}
+                    <div className="flex items-baseline justify-center gap-1">
+                        <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
+                        <span className="text-2xl text-slate-300 font-bold">/12</span>
+                    </div>
+
+                    {/* Barre de progression visuelle */}
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div 
+                            className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_total)}`} 
+                            style={{ width: `${(currentResult.score_total / 12) * 100}%` }}
+                        ></div>
+                    </div>
+                    
+                    {/* Légende */}
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>0 - Fragile</span>
+                        <span>12 - Robuste</span>
+                    </div>
+
+                    <div className={`mt-4 px-4 py-2 rounded-xl text-sm font-bold border inline-block ${getStatusColor(currentResult.statut)}`}>
+                        {currentResult.statut}
+                    </div>
                 </div>
               </div>
 
@@ -465,6 +497,7 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-6">
                       <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${getStatusColor(item.statut)}`}>{item.statut.split(' ')[0]}</span>
                       <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Robustesse</div>
                         <span className="font-black text-slate-900 text-2xl">{item.score_total}</span>
                         <span className="text-slate-300 text-xs font-bold ml-0.5">/12</span>
                       </div>
