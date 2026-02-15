@@ -15,8 +15,12 @@ const App: React.FC = () => {
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
-    const saved = localStorage.getItem('compagnon_portfolio');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('compagnon_portfolio');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +39,12 @@ const App: React.FC = () => {
     "Vos collègues utilisent-ils·elles des consignes identiques ou très similaires d'une session à l'autre ?"
   ];
 
-  // Sauvegarde automatique du portefeuille
   useEffect(() => {
     localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
   const handleAuditSubmit = async () => {
+    if (loading) return;
     setLoading(true);
     setError(null);
     try {
@@ -51,14 +55,14 @@ const App: React.FC = () => {
         title: consigne.trim().substring(0, 50) + (consigne.length > 50 ? '...' : ''),
         consigne,
         contextAnswers,
-        reproductibilite: data.reproductibilite,
-        contextualisation: data.contextualisation,
-        tacitite: data.tacitite,
-        multimodalite: data.multimodalite,
-        score_total: data.score_total,
+        reproductibilite: data.reproductibilite ?? 0,
+        contextualisation: data.contextualisation ?? 0,
+        tacitite: data.tacitite ?? 0,
+        multimodalite: data.multimodalite ?? 0,
+        score_total: data.score_total ?? 0,
         statut: data.statut as VulnerabilityStatus,
-        points_vigilance: data.points_vigilance,
-        recommandations: data.recommandations,
+        points_vigilance: data.points_vigilance ?? [],
+        recommandations: data.recommandations ?? [],
         justifications: data.justifications || {},
         date: new Date().toLocaleDateString('fr-FR')
       };
@@ -68,7 +72,7 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Submit Error:", err);
-      setError("Désolé·e, l'analyse a échoué. Vérifiez votre connexion ou réessayez avec une consigne plus courte.");
+      setError(`Erreur d'analyse : ${err.message || "Le service est temporairement indisponible. Vérifiez votre connexion."}`);
     } finally {
       setLoading(false);
     }
@@ -76,22 +80,12 @@ const App: React.FC = () => {
 
   const copyAsJson = () => {
     if (!currentResult) return;
-    const exportData = {
-      reproductibilite: currentResult.reproductibilite,
-      contextualisation: currentResult.contextualisation,
-      tacitite: currentResult.tacitite,
-      multimodalite: currentResult.multimodalite,
-      score_total: currentResult.score_total,
-      statut: currentResult.statut,
-      points_vigilance: currentResult.points_vigilance,
-      recommandations: currentResult.recommandations
-    };
-    navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
-    alert("Copié dans le presse-papier !");
+    navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
+    alert("Copié !");
   };
 
   const clearPortfolio = () => {
-    if (window.confirm("Voulez-vous vraiment supprimer tous les audits enregistrés ?")) {
+    if (window.confirm("Voulez-vous supprimer tout le portefeuille ?")) {
       setPortfolio([]);
     }
   };
@@ -107,7 +101,6 @@ const App: React.FC = () => {
       setQuickTestScores(newScores);
       setQuickTestIndex(quickTestIndex + 1);
     } else {
-      setQuickTestScores(newScores);
       const total = newScores.reduce((a, b) => a + b, 0);
       let status = VulnerabilityStatus.ROBUSTE;
       if (total >= 12) status = VulnerabilityStatus.CRITIQUE;
@@ -136,14 +129,13 @@ const App: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: VulnerabilityStatus) => {
-    switch (status) {
-      case VulnerabilityStatus.ROBUSTE: return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case VulnerabilityStatus.MODEREE: return 'bg-amber-100 text-amber-800 border-amber-200';
-      case VulnerabilityStatus.ELEVEE: return 'bg-orange-100 text-orange-800 border-orange-200';
-      case VulnerabilityStatus.CRITIQUE: return 'bg-rose-100 text-rose-800 border-rose-200';
-      default: return 'bg-slate-100 text-slate-800';
-    }
+  const getStatusColor = (status: VulnerabilityStatus | string) => {
+    const s = status.toLowerCase();
+    if (s.includes('robuste')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    if (s.includes('modérée')) return 'bg-amber-100 text-amber-800 border-amber-200';
+    if (s.includes('élevée')) return 'bg-orange-100 text-orange-800 border-orange-200';
+    if (s.includes('critique')) return 'bg-rose-100 text-rose-800 border-rose-200';
+    return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 
   return (
@@ -167,8 +159,9 @@ const App: React.FC = () => {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm font-medium flex items-center gap-3">
-            {error}
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm font-medium flex items-start gap-3">
+            <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span>{error}</span>
           </div>
         )}
 
@@ -204,10 +197,10 @@ const App: React.FC = () => {
               <textarea 
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
-                placeholder="Rédigez ou collez ici la consigne de votre évaluation... (Optionnel : préfixez par [JSON])"
+                placeholder="Rédigez ou collez ici la consigne de votre évaluation..."
                 className="w-full h-48 p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
               />
-              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              <button disabled={!consigne.trim()} onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all">
                 Suivant : contexte
               </button>
             </div>
@@ -219,43 +212,52 @@ const App: React.FC = () => {
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8">
               <h2 className="text-2xl font-bold text-slate-900">Questions contextuelles</h2>
               <div className="space-y-4">
-                <p className="font-medium">1. Composante orale ou synchrone ?</p>
+                <p className="font-medium text-slate-700">1. Composante orale ou synchrone ?</p>
                 <div className="flex flex-col gap-2">
                   {['Oui obligatoire', 'Oui optionnelle', 'Non, entièrement asynchrone'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o}))} className={`text-left px-4 py-3 rounded-xl border ${contextAnswers.synchrone === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'border-slate-200'}`}>{o}</button>
+                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o}))} className={`text-left px-4 py-3 rounded-xl border transition-all ${contextAnswers.synchrone === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-medium' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{o}</button>
                   ))}
                 </div>
               </div>
               <div className="space-y-4">
-                <p className="font-medium">2. Données locales ou confidentielles ?</p>
+                <p className="font-medium text-slate-700">2. Données locales ou confidentielles ?</p>
                 <div className="flex flex-col gap-2">
                   {['Oui exclusivement', 'Partiellement', 'Non, données génériques'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, donnees: o}))} className={`text-left px-4 py-3 rounded-xl border ${contextAnswers.donnees === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'border-slate-200'}`}>{o}</button>
+                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, donnees: o}))} className={`text-left px-4 py-3 rounded-xl border transition-all ${contextAnswers.donnees === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-medium' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{o}</button>
                   ))}
                 </div>
               </div>
               <div className="space-y-4">
-                <p className="font-medium">3. Processus de production évalué ?</p>
+                <p className="font-medium text-slate-700">3. Processus de production évalué ?</p>
                 <div className="flex flex-col gap-2">
                   {['Oui documenté ET évalué', 'Demandé mais non évalué', 'Non, seul le produit final'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, processus: o}))} className={`text-left px-4 py-3 rounded-xl border ${contextAnswers.processus === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'border-slate-200'}`}>{o}</button>
+                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, processus: o}))} className={`text-left px-4 py-3 rounded-xl border transition-all ${contextAnswers.processus === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-medium' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{o}</button>
                   ))}
                 </div>
               </div>
-              <button disabled={loading} onClick={handleAuditSubmit} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
-                {loading ? 'Audit en cours...' : 'Lancer l\'audit'}
+              <button 
+                disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus} 
+                onClick={handleAuditSubmit} 
+                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Audit en cours...
+                  </>
+                ) : 'Lancer l\'audit'}
               </button>
             </div>
           </div>
         )}
 
         {step === AppStep.AUDIT_RESULT && currentResult && (
-          <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-extrabold">Résultats</h2>
-              <button onClick={copyAsJson} className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center gap-1 border border-slate-200 px-3 py-1 rounded-lg">
+              <h2 className="text-3xl font-extrabold text-slate-900">Résultats de l'audit</h2>
+              <button onClick={copyAsJson} className="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center gap-1 border border-slate-200 px-3 py-1 rounded-lg transition-colors">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                Copier en JSON
+                Copier JSON
               </button>
             </div>
             
@@ -274,17 +276,18 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-bold text-lg">Points de vigilance</h3>
+                <h3 className="font-bold text-lg text-slate-800">Points de vigilance</h3>
                 <div className="space-y-2">
                   {currentResult.points_vigilance.map((v, i) => (
-                    <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm leading-relaxed">{v}</div>
+                    <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm leading-relaxed text-slate-600">{v}</div>
                   ))}
+                  {currentResult.points_vigilance.length === 0 && <p className="text-slate-400 italic">Aucun point critique identifié.</p>}
                 </div>
               </div>
             </div>
 
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-              <h3 className="text-xl font-bold">Recommandations stratégiques</h3>
+              <h3 className="text-xl font-bold text-slate-800">Recommandations stratégiques</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 {currentResult.recommandations.map((rec, i) => {
                   const fiche = FICHES[rec.fiche];
@@ -303,11 +306,11 @@ const App: React.FC = () => {
         )}
 
         {step === AppStep.PORTFOLIO && (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-extrabold">Portefeuille d'audits</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900">Portefeuille d'audits</h2>
               {portfolio.length > 0 && (
-                <button onClick={clearPortfolio} className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1">
+                <button onClick={clearPortfolio} className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors">
                   Vider tout
                 </button>
               )}
@@ -320,7 +323,7 @@ const App: React.FC = () => {
             ) : (
               <div className="grid gap-4">
                 {portfolio.map(item => (
-                  <div key={item.id} onClick={() => { setCurrentResult(item); setStep(AppStep.AUDIT_RESULT); }} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-600 transition-all flex justify-between items-center group relative">
+                  <div key={item.id} onClick={() => { setCurrentResult(item); setStep(AppStep.AUDIT_RESULT); }} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-600 transition-all flex justify-between items-center group relative active:scale-[0.99]">
                     <div className="flex-1 mr-4">
                       <h4 className="font-bold text-slate-800 line-clamp-1">{item.title}</h4>
                       <p className="text-xs text-slate-400">{item.date}</p>
@@ -331,7 +334,7 @@ const App: React.FC = () => {
                       <button 
                         onClick={(e) => deleteAudit(e, item.id)}
                         className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                        title="Supprimer cet audit"
+                        title="Supprimer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
@@ -341,22 +344,22 @@ const App: React.FC = () => {
               </div>
             )}
             <div className="pt-8 flex justify-center">
-               <button onClick={() => setStep(AppStep.WELCOME)} className="px-6 py-2 bg-indigo-600 text-white rounded-full font-bold shadow-lg hover:bg-indigo-700">Nouveau diagnostic</button>
+               <button onClick={() => setStep(AppStep.WELCOME)} className="px-6 py-2 bg-indigo-600 text-white rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-all active:scale-95">Nouveau diagnostic</button>
             </div>
           </div>
         )}
 
         {step === AppStep.QUICK_TEST && (
            <div className="max-w-2xl mx-auto py-12">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden animate-in zoom-in-95 duration-300">
               <div className="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all" style={{ width: `${(quickTestIndex / quickTestQuestions.length) * 100}%` }} />
               <div className="mb-8">
                 <span className="text-indigo-600 font-bold text-xs tracking-widest uppercase">Question {quickTestIndex + 1}/{quickTestQuestions.length}</span>
-                <h2 className="text-2xl font-bold mt-2 leading-snug">{quickTestQuestions[quickTestIndex]}</h2>
+                <h2 className="text-2xl font-bold mt-2 leading-snug text-slate-800">{quickTestQuestions[quickTestIndex]}</h2>
               </div>
               <div className="space-y-3">
                 {[{l: "Oui", s: 2}, {l: "Partiellement", s: 1}, {l: "Non", s: 0}].map(a => (
-                  <button key={a.l} onClick={() => handleQuickTestAnswer(a.s)} className="w-full text-left p-6 rounded-2xl border border-slate-100 bg-slate-50 font-semibold hover:bg-indigo-50 hover:border-indigo-100 transition-all">{a.l}</button>
+                  <button key={a.l} onClick={() => handleQuickTestAnswer(a.s)} className="w-full text-left p-6 rounded-2xl border border-slate-100 bg-slate-50 font-semibold text-slate-700 hover:bg-indigo-50 hover:border-indigo-100 transition-all active:scale-[0.98]">{a.l}</button>
                 ))}
               </div>
             </div>
@@ -371,7 +374,7 @@ const App: React.FC = () => {
             <a href="mailto:ia@rochane.fr" className="text-xl font-bold text-indigo-600 hover:underline">ia@rochane.fr</a>
           </div>
           <p className="text-sm text-slate-400 font-medium">
-            Conférence (2h) • Atelier (demi-journée) • Audit institutionnel de portefeuille évaluatif
+            Conférence • Atelier • Audit institutionnel
           </p>
         </div>
       </footer>
