@@ -2,15 +2,36 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
+// Fonction utilitaire pour récupérer la clé API depuis diverses sources d'environnement
+export function getSystemApiKey(): string | undefined {
+  // 1. Essayer Vite (standard pour les SPA modernes)
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
+  
+  // 2. Essayer Next.js ou Create React App
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
+    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
+    if (process.env.API_KEY) return process.env.API_KEY;
+  }
+
+  return undefined;
+}
+
 // Fonction pour auditer une consigne avec l'IA Gemini
-// Ajout du paramètre optionnel userApiKey
 export async function auditConsigne(consigne: string, contextAnswers: any, userApiKey?: string) {
   
-  // Priorité : 1. Clé fournie par l'utilisateur (localStorage) 2. Variable d'environnement (si dispo)
-  const apiKey = userApiKey || process.env.API_KEY;
+  // Priorité : 
+  // 1. Clé utilisateur (saisie manuelle)
+  // 2. Clé système (variable d'environnement exposée)
+  const systemKey = getSystemApiKey();
+  const apiKey = userApiKey || systemKey;
   
   if (!apiKey) {
-    throw new Error("Clé API manquante. Veuillez configurer votre clé API via le bouton 'Activer l'accès IA'.");
+    throw new Error("Aucune clé API détectée. L'administrateur doit configurer une clé (VITE_API_KEY) ou vous devez en saisir une manuellement.");
   }
 
   // Initialisation du client
@@ -94,7 +115,7 @@ INSTRUCTIONS DE CALCUL :
     console.error("Erreur Gemini:", error);
     // On propage l'erreur pour la gérer dans l'UI (ex: clé invalide)
     if (error.message?.includes("API key")) {
-        throw new Error("Clé API invalide. Vérifiez qu'elle est correcte.");
+        throw new Error("Clé API invalide ou quota dépassé.");
     }
     throw new Error(error.message || "L'analyse a échoué. Vérifiez votre connexion.");
   }

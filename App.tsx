@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppStep, AuditResult, VulnerabilityStatus } from './types';
-import { auditConsigne } from './services/gemini';
+import { auditConsigne, getSystemApiKey } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
 
@@ -25,6 +25,7 @@ const App: React.FC = () => {
 
   // Gestion de la Clé API
   const [userApiKey, setUserApiKey] = useState<string>('');
+  const [systemKeyAvailable, setSystemKeyAvailable] = useState(false);
   const [isKeyConfigured, setIsKeyConfigured] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [tempKeyInput, setTempKeyInput] = useState('');
@@ -34,19 +35,21 @@ const App: React.FC = () => {
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Initialisation : Vérifier si une clé existe (Env ou LocalStorage)
+  // Initialisation : Vérifier si une clé existe (Système ou LocalStorage)
   useEffect(() => {
-    // 1. Vérifier variable d'env (Build time)
-    if (process.env.API_KEY) {
+    // 1. Vérifier la présence d'une clé système fournie par l'hébergeur
+    const sysKey = getSystemApiKey();
+    if (sysKey) {
+      setSystemKeyAvailable(true);
       setIsKeyConfigured(true);
-      return;
     }
-    // 2. Vérifier LocalStorage (Client side)
+
+    // 2. Vérifier si l'utilisateur a surchargé avec sa propre clé
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) {
       setUserApiKey(storedKey);
-      setIsKeyConfigured(true);
-    } else {
+      setIsKeyConfigured(true); // La clé utilisateur prend le dessus ou complète
+    } else if (!sysKey) {
       setIsKeyConfigured(false);
     }
   }, []);
@@ -68,11 +71,17 @@ const App: React.FC = () => {
   };
 
   const handleRemoveKey = () => {
-    if(confirm("Voulez-vous supprimer la clé API enregistrée ?")) {
+    if(confirm("Voulez-vous supprimer votre clé personnelle ? L'application retournera sur la clé par défaut (si disponible).")) {
         localStorage.removeItem('gemini_api_key');
         setUserApiKey('');
-        setIsKeyConfigured(false);
         setTempKeyInput('');
+        
+        // Si une clé système existe, on reste configuré, sinon non
+        if (systemKeyAvailable) {
+            setIsKeyConfigured(true);
+        } else {
+            setIsKeyConfigured(false);
+        }
     }
   };
 
@@ -81,7 +90,7 @@ const App: React.FC = () => {
     
     // Vérification ultime avant lancement
     if (!isKeyConfigured) {
-        setError("Clé API requise. Veuillez cliquer sur 'Activer l'accès IA' en haut à droite.");
+        setError("Clé API requise pour démarrer l'analyse.");
         setShowKeyModal(true);
         return;
     }
@@ -92,8 +101,8 @@ const App: React.FC = () => {
     
     try {
       setLoadingStep('Analyse doctrinale en cours (IA)...');
-      // On passe la clé utilisateur explicitement
-      const data = await auditConsigne(consigne, contextAnswers, userApiKey);
+      // On passe la clé utilisateur si elle existe, sinon undefined (le service utilisera la clé système)
+      const data = await auditConsigne(consigne, contextAnswers, userApiKey || undefined);
       
       setLoadingStep('Génération des recommandations...');
       const result: AuditResult = {
@@ -119,8 +128,9 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Audit fail:", err);
       setError(err.message || "Erreur inconnue lors de l'analyse.");
-      if (err.message?.includes("Clé API")) {
-        setShowKeyModal(true); // Réouvrir la modale si la clé est rejetée
+      // Si erreur de clé (même système), on propose à l'utilisateur de mettre la sienne
+      if (err.message?.includes("Clé API") || err.message?.includes("quota")) {
+        setShowKeyModal(true); 
       }
     } finally {
       setLoading(false);
@@ -156,8 +166,13 @@ const App: React.FC = () => {
                     </button>
                 </div>
                 <div className="text-sm text-slate-600">
-                    <p className="mb-2">Pour fonctionner, cette application nécessite une clé API Google Gemini valide.</p>
-                    <p>Vous pouvez en obtenir une gratuitement sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Google AI Studio</a>.</p>
+                    <p className="mb-2">
+                        {systemKeyAvailable && !error 
+                            ? "Une clé par défaut est active, mais vous pouvez utiliser la vôtre pour plus de contrôle."
+                            : "Pour fonctionner, cette application nécessite une clé API Google Gemini."
+                        }
+                    </p>
+                    <p>Obtenez une clé gratuitement sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Google AI Studio</a>.</p>
                 </div>
                 <div>
                     <input 
@@ -193,13 +208,21 @@ const App: React.FC = () => {
               </button>
             ) : (
                 <button 
-                onClick={handleRemoveKey}
-                title="Clé configurée (cliquer pour supprimer)"
-                className="text-xs font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-200 transition-all flex items-center gap-2 group"
+                onClick={() => setShowKeyModal(true)}
+                title={userApiKey ? "Clé personnelle active" : "Clé système active (offerte)"}
+                className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all flex items-center gap-2 group ${
+                    userApiKey 
+                        ? 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-rose-100 hover:text-rose-700' 
+                        : 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200'
+                }`}
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 group-hover:bg-rose-500"></span>
-                <span className="group-hover:hidden">IA Active</span>
-                <span className="hidden group-hover:inline">Déconnecter</span>
+                <span className={`w-2 h-2 rounded-full ${userApiKey ? 'bg-indigo-500 group-hover:bg-rose-500' : 'bg-emerald-500'}`}></span>
+                {userApiKey ? (
+                    <>
+                        <span className="group-hover:hidden">IA Perso</span>
+                        <span className="hidden group-hover:inline" onClick={(e) => { e.stopPropagation(); handleRemoveKey(); }}>Déconnecter</span>
+                    </>
+                ) : "IA Active"}
               </button>
             )}
             <button 
@@ -227,7 +250,7 @@ const App: React.FC = () => {
             <p className="text-sm opacity-90 leading-relaxed">{error}</p>
             {(error.includes('Clé') || error.includes('API')) && (
               <button onClick={() => setShowKeyModal(true)} className="mt-4 w-full bg-rose-200 hover:bg-rose-300 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
-                Configurer la clé API maintenant
+                {systemKeyAvailable ? "Utiliser une clé personnelle de secours" : "Configurer une clé API"}
               </button>
             )}
           </div>
