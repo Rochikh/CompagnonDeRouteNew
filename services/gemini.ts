@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { SYSTEM_PROMPT } from "../constants.ts";
+import { SYSTEM_PROMPT } from "../constants";
 
 export async function auditConsigne(consigne: string, contextAnswers: any) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -70,15 +70,3 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
             "justifications"
           ]
         }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("Réponse vide de l'IA générative.");
-    
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("Gemini API Error details:", error);
-    throw error;
-  }
-}
