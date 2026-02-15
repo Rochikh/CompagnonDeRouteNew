@@ -3,15 +3,17 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
 // Fonction pour auditer une consigne avec l'IA Gemini
-export async function auditConsigne(consigne: string, contextAnswers: any) {
-  // On récupère la clé depuis l'environnement (injectée ou sélectionnée via le dialogue)
-  const apiKey = process.env.API_KEY;
+// Ajout du paramètre optionnel userApiKey
+export async function auditConsigne(consigne: string, contextAnswers: any, userApiKey?: string) {
+  
+  // Priorité : 1. Clé fournie par l'utilisateur (localStorage) 2. Variable d'environnement (si dispo)
+  const apiKey = userApiKey || process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("Clé API non configurée. Veuillez cliquer sur 'Activer l'accès' en haut de page.");
+    throw new Error("Clé API manquante. Veuillez configurer votre clé API via le bouton 'Activer l'accès IA'.");
   }
 
-  // Initialisation du client avec la clé la plus récente
+  // Initialisation du client
   const ai = new GoogleGenAI({ apiKey });
   
   const userPrompt = `
@@ -35,7 +37,7 @@ INSTRUCTIONS DE CALCUL :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview", // Passage au modèle Pro pour une meilleure analyse doctrinale (tâche complexe)
+      model: "gemini-3-pro-preview", 
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,
@@ -82,16 +84,18 @@ INSTRUCTIONS DE CALCUL :
     const text = response.text;
     if (!text) throw new Error("Le moteur d'IA n'a pas renvoyé de données.");
     
-    // Parsing sécurisé du JSON retourné par le modèle
     try {
       return JSON.parse(text.trim());
     } catch (e) {
-      // Nettoyage en cas de blocs de code markdown inclus par erreur
       const cleanJson = text.replace(/```json\n?|\n?```/g, "").trim();
       return JSON.parse(cleanJson);
     }
   } catch (error: any) {
     console.error("Erreur Gemini:", error);
+    // On propage l'erreur pour la gérer dans l'UI (ex: clé invalide)
+    if (error.message?.includes("API key")) {
+        throw new Error("Clé API invalide. Vérifiez qu'elle est correcte.");
+    }
     throw new Error(error.message || "L'analyse a échoué. Vérifiez votre connexion.");
   }
 }

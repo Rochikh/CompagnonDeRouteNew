@@ -5,14 +5,6 @@ import { auditConsigne } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
 
-// Correction des déclarations globales pour correspondre au type AIStudio attendu par l'environnement
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey(): Promise<boolean>;
-    openSelectKey(): Promise<void>;
-  }
-}
-
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [consigne, setConsigne] = useState('');
@@ -22,50 +14,86 @@ const App: React.FC = () => {
     processus: ''
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
+  
+  // Gestion du Portefeuille
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
     try {
       const saved = localStorage.getItem('compagnon_portfolio');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+
+  // Gestion de la Clé API
+  const [userApiKey, setUserApiKey] = useState<string>('');
+  const [isKeyConfigured, setIsKeyConfigured] = useState(false);
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [tempKeyInput, setTempKeyInput] = useState('');
+
+  // États UI
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [hasKey, setHasKey] = useState(true);
+
+  // Initialisation : Vérifier si une clé existe (Env ou LocalStorage)
+  useEffect(() => {
+    // 1. Vérifier variable d'env (Build time)
+    if (process.env.API_KEY) {
+      setIsKeyConfigured(true);
+      return;
+    }
+    // 2. Vérifier LocalStorage (Client side)
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setUserApiKey(storedKey);
+      setIsKeyConfigured(true);
+    } else {
+      setIsKeyConfigured(false);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
-  // Vérification de la sélection de la clé au montage via l'API aistudio
-  useEffect(() => {
-    const checkKey = async () => {
-      if (window.aistudio) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasKey(selected);
-      }
-    };
-    checkKey();
-  }, []);
-
-  const handleOpenKeySelector = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      // On assume le succès de la sélection selon les recommandations techniques pour éviter les conditions de course
-      setHasKey(true);
+  const handleSaveKey = () => {
+    if (tempKeyInput.trim().length > 10) {
+      localStorage.setItem('gemini_api_key', tempKeyInput.trim());
+      setUserApiKey(tempKeyInput.trim());
+      setIsKeyConfigured(true);
+      setShowKeyModal(false);
       setError(null);
+    } else {
+      alert("La clé semble invalide (trop courte).");
+    }
+  };
+
+  const handleRemoveKey = () => {
+    if(confirm("Voulez-vous supprimer la clé API enregistrée ?")) {
+        localStorage.removeItem('gemini_api_key');
+        setUserApiKey('');
+        setIsKeyConfigured(false);
+        setTempKeyInput('');
     }
   };
 
   const handleAuditSubmit = async () => {
     if (loading) return;
+    
+    // Vérification ultime avant lancement
+    if (!isKeyConfigured) {
+        setError("Clé API requise. Veuillez cliquer sur 'Activer l'accès IA' en haut à droite.");
+        setShowKeyModal(true);
+        return;
+    }
+
     setLoading(true);
     setError(null);
     setLoadingStep('Initialisation de l\'analyse...');
     
     try {
       setLoadingStep('Analyse doctrinale en cours (IA)...');
-      const data = await auditConsigne(consigne, contextAnswers);
+      // On passe la clé utilisateur explicitement
+      const data = await auditConsigne(consigne, contextAnswers, userApiKey);
       
       setLoadingStep('Génération des recommandations...');
       const result: AuditResult = {
@@ -90,13 +118,9 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Audit fail:", err);
-      // Gestion spécifique de l'erreur 404/Not Found pour réclamer une nouvelle clé payante
-      if (err.message?.includes("Requested entity was not found")) {
-        setHasKey(false);
-        setError("La clé API sélectionnée n'est pas valide ou n'est pas associée à un projet avec facturation activée. Veuillez en sélectionner une autre.");
-        await handleOpenKeySelector();
-      } else {
-        setError(err.message || "Erreur inconnue");
+      setError(err.message || "Erreur inconnue lors de l'analyse.");
+      if (err.message?.includes("Clé API")) {
+        setShowKeyModal(true); // Réouvrir la modale si la clé est rejetée
       }
     } finally {
       setLoading(false);
@@ -120,7 +144,38 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 relative">
+      {/* MODAL CONFIGURATION CLE API */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                <div className="flex justify-between items-start">
+                    <h3 className="text-lg font-bold text-slate-900">Configuration API Gemini</h3>
+                    <button onClick={() => setShowKeyModal(false)} className="text-slate-400 hover:text-slate-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="text-sm text-slate-600">
+                    <p className="mb-2">Pour fonctionner, cette application nécessite une clé API Google Gemini valide.</p>
+                    <p>Vous pouvez en obtenir une gratuitement sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Google AI Studio</a>.</p>
+                </div>
+                <div>
+                    <input 
+                        type="password" 
+                        value={tempKeyInput}
+                        onChange={(e) => setTempKeyInput(e.target.value)}
+                        placeholder="Collez votre clé API ici (ex: AIzaSy...)"
+                        className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+                    />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={() => setShowKeyModal(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg">Annuler</button>
+                    <button onClick={handleSaveKey} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-100">Enregistrer la clé</button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setStep(AppStep.WELCOME); setError(null); }}>
@@ -128,16 +183,23 @@ const App: React.FC = () => {
             <h1 className="font-bold text-slate-800 tracking-tight">Compagnon de route</h1>
           </div>
           <div className="flex items-center gap-4">
-            {!hasKey && (
+            {!isKeyConfigured ? (
               <button 
-                onClick={handleOpenKeySelector}
-                className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full border border-amber-200 hover:bg-amber-200 transition-colors flex items-center gap-2"
+                onClick={() => setShowKeyModal(true)}
+                className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full border border-amber-200 hover:bg-amber-200 transition-colors flex items-center gap-2 animate-pulse"
               >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                 Activer l'accès IA
+              </button>
+            ) : (
+                <button 
+                onClick={handleRemoveKey}
+                title="Clé configurée (cliquer pour supprimer)"
+                className="text-xs font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-200 transition-all flex items-center gap-2 group"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 group-hover:bg-rose-500"></span>
+                <span className="group-hover:hidden">IA Active</span>
+                <span className="hidden group-hover:inline">Déconnecter</span>
               </button>
             )}
             <button 
@@ -164,7 +226,7 @@ const App: React.FC = () => {
             </div>
             <p className="text-sm opacity-90 leading-relaxed">{error}</p>
             {(error.includes('Clé') || error.includes('API')) && (
-              <button onClick={handleOpenKeySelector} className="mt-4 w-full bg-rose-200 hover:bg-rose-300 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
+              <button onClick={() => setShowKeyModal(true)} className="mt-4 w-full bg-rose-200 hover:bg-rose-300 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
                 Configurer la clé API maintenant
               </button>
             )}
@@ -388,6 +450,17 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {step === AppStep.QUICK_TEST && (
+           <div className="max-w-2xl mx-auto py-12">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center">
+              <p className="text-slate-500 mb-4">Le diagnostic rapide n'utilise pas l'IA et ne nécessite pas de clé.</p>
+              <h2 className="text-2xl font-bold mb-4">Fonctionnalité simplifiée</h2>
+              {/* Contenu du quick test simplifié ici si besoin, ou retour à l'accueil */}
+               <button onClick={() => setStep(AppStep.WELCOME)} className="text-indigo-600 font-bold hover:underline">Retour</button>
+            </div>
           </div>
         )}
       </main>
