@@ -47,8 +47,11 @@ const App: React.FC = () => {
     if (loading) return;
     setLoading(true);
     setError(null);
+    console.log("Démarrage de l'audit pour la consigne:", consigne);
+    
     try {
       const data = await auditConsigne(consigne, contextAnswers);
+      console.log("Données reçues de Gemini:", data);
       
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
@@ -72,7 +75,7 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Submit Error:", err);
-      setError(`Erreur d'analyse : ${err.message || "Le service est temporairement indisponible. Vérifiez votre connexion."}`);
+      setError(`Erreur d'analyse : ${err.message || "Le service est temporairement indisponible."}`);
     } finally {
       setLoading(false);
     }
@@ -130,13 +133,15 @@ const App: React.FC = () => {
   };
 
   const getStatusColor = (status: VulnerabilityStatus | string) => {
-    const s = status.toLowerCase();
+    const s = (status || "").toLowerCase();
     if (s.includes('robuste')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     if (s.includes('modérée')) return 'bg-amber-100 text-amber-800 border-amber-200';
     if (s.includes('élevée')) return 'bg-orange-100 text-orange-800 border-orange-200';
     if (s.includes('critique')) return 'bg-rose-100 text-rose-800 border-rose-200';
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
+
+  const isAuditButtonDisabled = !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus;
 
   return (
     <div className="min-h-screen pb-20">
@@ -235,18 +240,29 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <button 
-                disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus} 
-                onClick={handleAuditSubmit} 
-                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Audit en cours...
-                  </>
-                ) : 'Lancer l\'audit'}
-              </button>
+              
+              <div className="pt-4">
+                <button 
+                  disabled={loading || isAuditButtonDisabled} 
+                  onClick={handleAuditSubmit} 
+                  className={`w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                    isAuditButtonDisabled 
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300' 
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Audit en cours...
+                    </>
+                  ) : (
+                    <>
+                      {isAuditButtonDisabled ? 'Veuillez répondre aux 3 questions' : "Lancer l'audit"}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

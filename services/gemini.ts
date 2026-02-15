@@ -73,8 +73,14 @@ export async function auditConsigne(consigne: string, contextAnswers: any) {
       }
     });
 
-    const text = response.text;
+    let text = response.text;
     if (!text) throw new Error("Réponse vide de l'IA générative.");
+    
+    // Nettoyage de la chaîne JSON au cas où l'IA inclurait des backticks Markdown
+    text = text.trim();
+    if (text.startsWith("```")) {
+      text = text.replace(/^```(json)?\n?/, "").replace(/\n?```$/, "");
+    }
     
     return JSON.parse(text);
   } catch (error) {
