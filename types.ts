@@ -1,9 +1,9 @@
 
 export enum VulnerabilityStatus {
-  ROBUSTE = "ROBUSTE",
-  MODEREE = "VULNÉRABILITÉ MODÉRÉE",
-  ELEVEE = "VULNÉRABILITÉ ÉLEVÉE",
-  CRITIQUE = "VULNÉRABILITÉ CRITIQUE"
+  ROBUSTE = "Robuste",
+  MODEREE = "Vulnérabilité modérée",
+  ELEVEE = "Vulnérabilité élevée",
+  CRITIQUE = "Vulnérabilité critique"
 }
 
 export interface AuditResult {
@@ -15,7 +15,6 @@ export interface AuditResult {
     donnees: string;
     processus: string;
   };
-  // Format demandé par l'utilisateur·rice
   reproductibilite: number;
   contextualisation: number;
   tacitite: number;
@@ -27,7 +26,6 @@ export interface AuditResult {
     action: string;
     fiche: string;
   }>;
-  // Données additionnelles pour l'interface
   justifications: Record<string, string>;
   date: string;
 }

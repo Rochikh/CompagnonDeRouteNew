@@ -82,7 +82,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ scores }) => {
             x={p.labelX}
             y={p.labelY}
             textAnchor="middle"
-            className="text-[10px] font-medium fill-slate-500 uppercase tracking-wider"
+            className="text-[10px] font-medium fill-slate-500 tracking-wider"
           >
             {p.label}
           </text>
