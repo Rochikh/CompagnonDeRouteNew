@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { AppStep, AuditResult, VulnerabilityStatus } from './types';
-import { auditConsigne } from './services/gemini';
-import { FICHES } from './constants';
-import RadarChart from './components/RadarChart';
+import { AppStep, AuditResult, VulnerabilityStatus } from './types.ts';
+import { auditConsigne } from './services/gemini.ts';
+import { FICHES } from './constants.ts';
+import RadarChart from './components/RadarChart.tsx';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);

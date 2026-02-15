@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { SYSTEM_PROMPT } from "../constants";
+import { SYSTEM_PROMPT } from "../constants.ts";
 
 export async function auditConsigne(consigne: string, contextAnswers: any) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
