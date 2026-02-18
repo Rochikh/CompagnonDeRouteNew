@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppStep, AuditResult, VulnerabilityStatus } from './types';
-import { auditConsigne, getSystemApiKey } from './services/gemini';
+import { auditConsigne } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
 
@@ -11,9 +11,22 @@ const QUICK_QUESTIONS = [
   "L'évaluation mobilise-t-elle des données génériques accessibles en ligne (plutôt que locales/personnelles) ?",
   "Le produit final est-il le seul objet évalué, sans trace du processus de production ?",
   "L'évaluation se déroule-t-elle entièrement en mode asynchrone, sans interaction temps réel ?",
-  "Les critères d'évaluation portent-ils exclusivement sur le contenu (sans dimension réflexive) ?",
+  "Les critères d'évaluation portant-ils exclusivement sur le contenu (sans dimension réflexive) ?",
   "Un apprenant pourrait-il obtenir une note satisfaisante sans pouvoir expliquer oralement ses choix ?",
   "Vos collègues utilisent-ils des consignes identiques ou très similaires d'une session à l'autre ?"
+];
+
+const LOADING_MESSAGES = [
+  "Analyse de la structure sémantique...",
+  "Évaluation du potentiel de reproduction par l'IA...",
+  "Calcul du degré de contextualisation requis...",
+  "Identification des dimensions tacites et réflexives...",
+  "Vérification des leviers de multimodalité...",
+  "Consultation de la base de remédiation (Fiches 1-8)...",
+  "Génération des recommandations stratégiques...",
+  "Finalisation du diagnostic de robustesse...",
+  "L'IA peaufine ses conseils pédagogiques...",
+  "Encore quelques secondes, le rapport arrive !"
 ];
 
 const App: React.FC = () => {
@@ -37,88 +50,44 @@ const App: React.FC = () => {
     } catch { return []; }
   });
 
-  // Gestion de la Clé API
-  const [userApiKey, setUserApiKey] = useState<string>('');
-  const [systemKeyAvailable, setSystemKeyAvailable] = useState(false);
-  const [isKeyConfigured, setIsKeyConfigured] = useState(false);
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [tempKeyInput, setTempKeyInput] = useState('');
-
   // États UI
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const loadingIntervalRef = useRef<number | null>(null);
 
-  // Initialisation : Vérifier si une clé existe (Système ou LocalStorage)
-  useEffect(() => {
-    // 1. Vérifier la présence d'une clé système fournie par l'hébergeur
-    const sysKey = getSystemApiKey();
-    if (sysKey) {
-      setSystemKeyAvailable(true);
-      setIsKeyConfigured(true);
-    }
-
-    // 2. Vérifier si l'utilisateur a surchargé avec sa propre clé
-    const storedKey = localStorage.getItem('gemini_api_key');
-    if (storedKey) {
-      setUserApiKey(storedKey);
-      setIsKeyConfigured(true); // La clé utilisateur prend le dessus ou complète
-    } else if (!sysKey) {
-      setIsKeyConfigured(false);
-    }
-  }, []);
-
+  // Synchronisation locale du portefeuille
   useEffect(() => {
     localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
 
-  const handleSaveKey = () => {
-    if (tempKeyInput.trim().length > 10) {
-      localStorage.setItem('gemini_api_key', tempKeyInput.trim());
-      setUserApiKey(tempKeyInput.trim());
-      setIsKeyConfigured(true);
-      setShowKeyModal(false);
-      setError(null);
-    } else {
-      alert("La clé semble invalide (trop courte).");
-    }
+  const startLoadingMessages = () => {
+    let index = 0;
+    setLoadingStep(LOADING_MESSAGES[0]);
+    loadingIntervalRef.current = window.setInterval(() => {
+      index = (index + 1) % LOADING_MESSAGES.length;
+      setLoadingStep(LOADING_MESSAGES[index]);
+    }, 2500);
   };
 
-  const handleRemoveKey = () => {
-    if(confirm("Voulez-vous supprimer votre clé personnelle ? L'application retournera sur la clé par défaut (si disponible).")) {
-        localStorage.removeItem('gemini_api_key');
-        setUserApiKey('');
-        setTempKeyInput('');
-        
-        // Si une clé système existe, on reste configuré, sinon non
-        if (systemKeyAvailable) {
-            setIsKeyConfigured(true);
-        } else {
-            setIsKeyConfigured(false);
-        }
+  const stopLoadingMessages = () => {
+    if (loadingIntervalRef.current) {
+      clearInterval(loadingIntervalRef.current);
+      loadingIntervalRef.current = null;
     }
   };
 
   const handleAuditSubmit = async () => {
     if (loading) return;
-    
-    // Vérification ultime avant lancement
-    if (!isKeyConfigured) {
-        setError("Clé API requise pour démarrer l'analyse.");
-        setShowKeyModal(true);
-        return;
-    }
 
     setLoading(true);
     setError(null);
-    setLoadingStep('Initialisation de l\'analyse...');
+    startLoadingMessages();
     
     try {
-      setLoadingStep('Analyse doctrinale en cours (IA)...');
-      // On passe la clé utilisateur si elle existe, sinon undefined (le service utilisera la clé système)
-      const data = await auditConsigne(consigne, contextAnswers, userApiKey || undefined);
+      // L'API Key est gérée directement via process.env dans le service gemini
+      const data = await auditConsigne(consigne, contextAnswers);
       
-      setLoadingStep('Génération des recommandations...');
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
         title: consigne.trim().substring(0, 50) + (consigne.length > 50 ? '...' : ''),
@@ -141,21 +110,17 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Audit fail:", err);
-      setError(err.message || "Erreur inconnue lors de l'analyse.");
-      // Si erreur de clé (même système), on propose à l'utilisateur de mettre la sienne
-      if (err.message?.includes("Clé API") || err.message?.includes("quota")) {
-        setShowKeyModal(true); 
-      }
+      setError(err.message || "L'analyse a pris trop de temps ou a échoué. Veuillez réessayer.");
     } finally {
       setLoading(false);
-      setLoadingStep('');
+      stopLoadingMessages();
     }
   };
 
   const copyAsJson = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
-    alert("Copié !");
+    alert("Copié dans le presse-papier !");
   };
 
   const getStatusColor = (status: string) => {
@@ -167,7 +132,6 @@ const App: React.FC = () => {
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 
-  // Helper pour la barre de progression (Audit IA)
   const getProgressColor = (score: number) => {
     if (score >= 10) return 'bg-emerald-500';
     if (score >= 7) return 'bg-amber-500';
@@ -175,15 +139,13 @@ const App: React.FC = () => {
     return 'bg-rose-500';
   };
 
-  // Helper pour le Quick Test (Logique inversée : Score élevé = Vulnérable)
   const getQuickTestResult = () => {
-    const score = Object.values(quickAnswers).reduce((a, b) => a + b, 0);
+    const values = Object.values(quickAnswers) as number[];
+    const score = values.reduce((acc: number, val: number) => acc + val, 0);
     const answered = Object.keys(quickAnswers).length;
-    
     let status = "";
     let colorClass = "";
     let advice = "";
-
     if (score >= 10) {
       status = "Vulnérabilité CRITIQUE";
       colorClass = "bg-rose-100 text-rose-800 border-rose-200";
@@ -197,48 +159,11 @@ const App: React.FC = () => {
       colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
       advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
     }
-
     return { score, status, colorClass, advice, answered };
   };
 
   return (
     <div className="min-h-screen pb-20 relative">
-      {/* MODAL CONFIGURATION CLE API */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-                <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-bold text-slate-900">Configuration API Gemini</h3>
-                    <button onClick={() => setShowKeyModal(false)} className="text-slate-400 hover:text-slate-600">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                <div className="text-sm text-slate-600">
-                    <p className="mb-2">
-                        {systemKeyAvailable && !error 
-                            ? "Une clé par défaut est active, mais vous pouvez utiliser la vôtre pour plus de contrôle."
-                            : "Pour fonctionner, cette application nécessite une clé API Google Gemini."
-                        }
-                    </p>
-                    <p>Obtenez une clé gratuitement sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Google AI Studio</a>.</p>
-                </div>
-                <div>
-                    <input 
-                        type="password" 
-                        value={tempKeyInput}
-                        onChange={(e) => setTempKeyInput(e.target.value)}
-                        placeholder="Collez votre clé API ici (ex: AIzaSy...)"
-                        className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
-                    />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={() => setShowKeyModal(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg">Annuler</button>
-                    <button onClick={handleSaveKey} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-100">Enregistrer la clé</button>
-                </div>
-            </div>
-        </div>
-      )}
-
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setStep(AppStep.WELCOME); setError(null); }}>
@@ -246,33 +171,6 @@ const App: React.FC = () => {
             <h1 className="font-bold text-slate-800 tracking-tight">Compagnon de route</h1>
           </div>
           <div className="flex items-center gap-4">
-            {!isKeyConfigured ? (
-              <button 
-                onClick={() => setShowKeyModal(true)}
-                className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full border border-amber-200 hover:bg-amber-200 transition-colors flex items-center gap-2 animate-pulse"
-              >
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                Activer l'accès IA
-              </button>
-            ) : (
-                <button 
-                onClick={() => setShowKeyModal(true)}
-                title={userApiKey ? "Clé personnelle active" : "Clé système active (offerte)"}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all flex items-center gap-2 group ${
-                    userApiKey 
-                        ? 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-rose-100 hover:text-rose-700' 
-                        : 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${userApiKey ? 'bg-indigo-500 group-hover:bg-rose-500' : 'bg-emerald-500'}`}></span>
-                {userApiKey ? (
-                    <>
-                        <span className="group-hover:hidden">IA Perso</span>
-                        <span className="hidden group-hover:inline" onClick={(e) => { e.stopPropagation(); handleRemoveKey(); }}>Déconnecter</span>
-                    </>
-                ) : "IA Active"}
-              </button>
-            )}
             <button 
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
               className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
@@ -289,18 +187,10 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <h3 className="font-bold">Problème d'analyse</h3>
+                <h3 className="font-bold">Analyse interrompue</h3>
               </div>
-              <button onClick={() => setError(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
             </div>
             <p className="text-sm opacity-90 leading-relaxed">{error}</p>
-            {(error.includes('Clé') || error.includes('API')) && (
-              <button onClick={() => setShowKeyModal(true)} className="mt-4 w-full bg-rose-200 hover:bg-rose-300 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
-                {systemKeyAvailable ? "Utiliser une clé personnelle de secours" : "Configurer une clé API"}
-              </button>
-            )}
           </div>
         )}
 
@@ -361,40 +251,73 @@ const App: React.FC = () => {
         {step === AppStep.AUDIT_QUESTIONS && (
           <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
-              <h2 className="text-2xl font-bold text-slate-900">2. Contexte de passage</h2>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-slate-900">2. Contexte de passage</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">Précisez les conditions réelles de l'examen pour affiner le diagnostic.</p>
+              </div>
               
               <div className="space-y-4">
-                <p className="font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">1</span>
-                  Composante orale ou synchrone ?
-                </p>
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">1</span>
+                    Composante orale ou synchrone ?
+                  </p>
+                  <p className="text-xs text-slate-500 italic ml-8">L'apprenant·e doit-il/elle s'exprimer de vive voix ou en direct ?</p>
+                </div>
                 <div className="grid gap-2">
-                  {['Oui obligatoire', 'Oui optionnelle', 'Non, asynchrone'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o}))} className={`text-left px-5 py-3.5 rounded-2xl border transition-all ${contextAnswers.synchrone === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>{o}</button>
+                  {[
+                    { label: 'Oui obligatoire', ex: 'Soutenance devant jury, examen oral en classe.' },
+                    { label: 'Oui optionnelle', ex: 'Participation orale possible mais non notée.' },
+                    { label: 'Non, asynchrone', ex: 'Dépôt d\'un document PDF ou fichier à distance.' }
+                  ].map(o => (
+                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.synchrone === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <span className="block text-sm">{o.label}</span>
+                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
+                    </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <p className="font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
-                  Nature des données ?
-                </p>
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
+                    Nature des données ?
+                  </span>
+                  <p className="text-xs text-slate-500 italic ml-8">Le sujet est-il généraliste ou ancré dans un vécu unique ?</p>
+                </div>
                 <div className="grid gap-2">
-                  {['Données locales / confidentielles', 'Partiellement spécifiques', 'Données génériques'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, donnees: o}))} className={`text-left px-5 py-3.5 rounded-2xl border transition-all ${contextAnswers.donnees === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>{o}</button>
+                  {[
+                    { label: 'Données locales / confidentielles', ex: 'Problématique interne à une PME précise, vécu personnel.' },
+                    { label: 'Partiellement spécifiques', ex: 'Étude d\'un secteur d\'activité mais sans entreprise précise.' },
+                    { label: 'Données génériques', ex: 'Sujet théorique (ex: "Le rôle de l\'IA en RH"), trouvable sur le web.' }
+                  ].map(o => (
+                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, donnees: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.donnees === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <span className="block text-sm">{o.label}</span>
+                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
+                    </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <p className="font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
-                  Évaluation du processus ?
-                </p>
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
+                    Évaluation du processus ?
+                  </span>
+                  <p className="text-xs text-slate-500 italic ml-8">Notez-vous uniquement le résultat final ou les étapes de création ?</p>
+                </div>
                 <div className="grid gap-2">
-                  {['Processus documenté et évalué', 'Demandé mais non évalué', 'Seul le produit final'].map(o => (
-                    <button key={o} onClick={() => setContextAnswers(prev => ({...prev, processus: o}))} className={`text-left px-5 py-3.5 rounded-2xl border transition-all ${contextAnswers.processus === o ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>{o}</button>
+                  {[
+                    { label: 'Processus documenté et évalué', ex: 'Journal de bord requis, étapes notées au fil de l\'eau.' },
+                    { label: 'Demandé mais non évalué', ex: 'Brouillons demandés mais seule la note finale compte.' },
+                    { label: 'Seul le produit final', ex: 'Seul le rapport final est rendu et noté.' }
+                  ].map(o => (
+                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, processus: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.processus === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <span className="block text-sm">{o.label}</span>
+                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -403,18 +326,18 @@ const App: React.FC = () => {
                 <button 
                   disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus} 
                   onClick={handleAuditSubmit} 
-                  className={`w-full font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-xl ${
-                    loading ? 'bg-slate-800 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  } disabled:opacity-20`}
+                  className={`w-full font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-xl ${
+                    loading ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  } disabled:opacity-30`}
                 >
                   {loading ? (
-                    <>
+                    <div className="flex flex-col items-center gap-2">
                       <div className="flex items-center gap-3">
                         <svg className="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span>{loadingStep}</span>
+                        <span className="animate-pulse">{loadingStep}</span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-medium">Analyse doctrinale IA en cours</span>
-                    </>
+                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">L'analyse IA peut prendre jusqu'à 15 secondes</span>
+                    </div>
                   ) : "Lancer l'audit de robustesse"}
                 </button>
               </div>
@@ -426,7 +349,7 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Audit de Robustesse</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Rapport de Robustesse</h2>
                 <p className="text-slate-500 text-sm">{currentResult.date} — {currentResult.title}</p>
               </div>
               <div className="flex gap-2">
@@ -445,28 +368,14 @@ const App: React.FC = () => {
                 }} />
                 
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">
-                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Indice de Robustesse</h4>
-                    
-                    {/* Grand Score */}
+                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Score de Robustesse</h4>
                     <div className="flex items-baseline justify-center gap-1">
                         <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
                         <span className="text-2xl text-slate-300 font-bold">/12</span>
                     </div>
-
-                    {/* Barre de progression visuelle */}
                     <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                        <div 
-                            className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_total)}`} 
-                            style={{ width: `${(currentResult.score_total / 12) * 100}%` }}
-                        ></div>
+                        <div className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_total)}`} style={{ width: `${(currentResult.score_total / 12) * 100}%` }}></div>
                     </div>
-                    
-                    {/* Légende */}
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <span>0 - Fragile</span>
-                        <span>12 - Robuste</span>
-                    </div>
-
                     <div className={`mt-4 px-4 py-2 rounded-xl text-sm font-bold border inline-block ${getStatusColor(currentResult.statut)}`}>
                         {currentResult.statut}
                     </div>
@@ -487,10 +396,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl space-y-8">
-              <div className="space-y-1">
-                <h3 className="text-2xl font-black tracking-tight">Recommandations stratégiques</h3>
-                <p className="text-slate-400 text-sm">Actions prioritaires pour renforcer votre évaluation</p>
-              </div>
+              <h3 className="text-2xl font-black tracking-tight">Recommandations stratégiques</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 {currentResult.recommandations.map((rec, i) => {
                   const fiche = FICHES[rec.fiche];
@@ -500,7 +406,6 @@ const App: React.FC = () => {
                       {fiche && (
                         <div className="flex items-center justify-between mt-auto">
                           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{fiche.name}</span>
-                          <span className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs group-hover:bg-indigo-500 group-hover:text-white transition-all">→</span>
                         </div>
                       )}
                     </div>
@@ -515,12 +420,6 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in fade-in duration-300">
              <div className="flex items-center justify-between">
               <h2 className="text-3xl font-black text-slate-900">Portefeuille</h2>
-              {portfolio.length > 0 && (
-                <button 
-                  onClick={() => { if(confirm("Vider tout ?")) setPortfolio([]); }} 
-                  className="text-xs font-bold text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-all"
-                >Vider tout</button>
-              )}
             </div>
             {portfolio.length === 0 ? (
                <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
@@ -535,13 +434,9 @@ const App: React.FC = () => {
                       <h4 className="font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{item.title}</h4>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{item.date}</p>
                     </div>
-                    <div className="flex items-center gap-6">
-                      <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${getStatusColor(item.statut)}`}>{item.statut.split(' ')[0]}</span>
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Robustesse</div>
-                        <span className="font-black text-slate-900 text-2xl">{item.score_total}</span>
-                        <span className="text-slate-300 text-xs font-bold ml-0.5">/12</span>
-                      </div>
+                    <div className="flex items-center gap-6 text-right">
+                      <span className="font-black text-slate-900 text-2xl">{item.score_total}</span>
+                      <span className="text-slate-300 text-xs font-bold ml-0.5">/12</span>
                     </div>
                   </div>
                 ))}
@@ -564,31 +459,21 @@ const App: React.FC = () => {
                   <div key={idx} className="pb-6 border-b border-slate-100 last:border-0 animate-in fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
                     <p className="font-medium text-slate-800 mb-3">{q}</p>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 2}))} 
-                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 2 ? 'bg-rose-100 border-rose-500 text-rose-700 ring-2 ring-rose-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
-                      >
-                        Oui (+2)
-                      </button>
-                      <button 
-                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 1}))} 
-                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 1 ? 'bg-amber-100 border-amber-500 text-amber-700 ring-2 ring-amber-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
-                      >
-                        Partiellement (+1)
-                      </button>
-                      <button 
-                        onClick={() => setQuickAnswers(prev => ({...prev, [idx]: 0}))} 
-                        className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === 0 ? 'bg-emerald-100 border-emerald-500 text-emerald-700 ring-2 ring-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}
-                      >
-                        Non (0)
-                      </button>
+                      {[
+                        { val: 2, label: 'Oui (+2)' },
+                        { val: 1, label: 'Partiellement (+1)' },
+                        { val: 0, label: 'Non (0)' }
+                      ].map(opt => (
+                        <button key={opt.val} onClick={() => setQuickAnswers(prev => ({...prev, [idx]: opt.val}))} className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === opt.val ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* RESULTAT EN TEMPS REEL */}
             {getQuickTestResult().answered > 0 && (
                 <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
                     <div className="flex items-center justify-between mb-2">
@@ -597,7 +482,6 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-4 mb-4">
                         <span className="text-5xl font-black">{getQuickTestResult().score}</span>
-                        <div className="h-12 w-[1px] bg-current opacity-20"></div>
                         <div>
                             <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
                             <div className="text-xs font-medium opacity-80 uppercase tracking-wider">Sur 16 points max</div>
