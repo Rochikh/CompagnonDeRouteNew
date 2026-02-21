@@ -141,25 +141,37 @@ const App: React.FC = () => {
 
   const getQuickTestResult = () => {
     const values = Object.values(quickAnswers) as number[];
-    const score = values.reduce((acc: number, val: number) => acc + val, 0);
+    // Calcul inversé : on part de 16 (robustesse max théorique ici) et on enlève les points de vulnérabilité
+    // Chaque réponse "Oui" (2 pts) ou "Partiellement" (1 pt) dans le questionnaire actuel mesure la VULNÉRABILITÉ.
+    // Donc Score Robustesse = Max - Score Vulnérabilité
+    const vulnerabilityScore = values.reduce((acc: number, val: number) => acc + val, 0);
+    const maxVulnerability = 16; // 8 questions * 2 pts
+    
+    // On convertit en score de robustesse sur 12 pour s'aligner avec l'audit IA
+    // Produit en croix : (16 - vulnerabilityScore) / 16 * 12
+    const robustnessScore = Math.round(((maxVulnerability - vulnerabilityScore) / maxVulnerability) * 12);
+    
     const answered = Object.keys(quickAnswers).length;
     let status = "";
     let colorClass = "";
     let advice = "";
-    if (score >= 10) {
-      status = "Vulnérabilité CRITIQUE";
-      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
-      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
-    } else if (score >= 5) {
+
+    // Échelle alignée sur l'audit IA (0-12)
+    if (robustnessScore >= 10) {
+      status = "Robustesse ÉLEVÉE";
+      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
+    } else if (robustnessScore >= 5) {
       status = "Vulnérabilité MODÉRÉE";
       colorClass = "bg-amber-100 text-amber-800 border-amber-200";
       advice = "Consultez les Fiches 1 à 4 pour des adaptations ciblées.";
     } else {
-      status = "Robustesse ÉLEVÉE";
-      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
+      status = "Vulnérabilité CRITIQUE";
+      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
+      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
     }
-    return { score, status, colorClass, advice, answered };
+    
+    return { score: robustnessScore, status, colorClass, advice, answered };
   };
 
   return (
@@ -451,7 +463,7 @@ const App: React.FC = () => {
               <div className="text-center mb-10">
                 <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">3 minutes chrono</span>
                 <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">Diagnostic Rapide</h2>
-                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes en pensant à une évaluation précise. Le score de vulnérabilité se calcule automatiquement.</p>
+                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes. Plus votre score sur 12 est élevé, plus votre évaluation est robuste face à l'IA.</p>
               </div>
 
               <div className="space-y-6">
@@ -477,14 +489,17 @@ const App: React.FC = () => {
             {getQuickTestResult().answered > 0 && (
                 <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de vulnérabilité</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de Robustesse (Estimé)</div>
                         <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 répondue(s)</div>
                     </div>
                     <div className="flex items-center gap-4 mb-4">
-                        <span className="text-5xl font-black">{getQuickTestResult().score}</span>
+                        <div className="flex items-baseline">
+                            <span className="text-5xl font-black">{getQuickTestResult().score}</span>
+                            <span className="text-xl font-bold opacity-50 ml-1">/12</span>
+                        </div>
                         <div>
                             <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
-                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">Sur 16 points max</div>
+                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">Indice de confiance</div>
                         </div>
                     </div>
                     <p className="font-medium text-sm leading-relaxed border-t border-current border-opacity-20 pt-3 opacity-90">
