@@ -1,40 +1,57 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SYSTEM_PROMPT } from "../constants";
+
+// Inline constant to avoid import resolution issues in serverless environment
+const SYSTEM_PROMPT = `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
+Ta mission est d'analyser la robustesse d'une consigne d'évaluation en te basant sur la doctrine de Rochane Kherbouche (2026).
+
+DOCTRINE D'ANALYSE :
+1. Reproductibilité : Capacité de l'IA à produire un résultat recevable à partir de la consigne brute (0=IA parfaite, 3=IA incapable).
+2. Contextualisation : Degré d'ancrage dans des données locales, personnelles ou non documentées en ligne (0=Générique, 3=Ultra-spécifique).
+3. Tacitité : Présence de dimensions métacognitives ou de justification orale des choix (0=Produit pur, 3=Réflexivité forte).
+4. Multimodalité : Diversité des supports et composante synchrone/physique (0=Texte asynchrone, 3=Présence physique/synchrone).
+
+TON ANALYSE DOIT :
+- Utiliser l'écriture inclusive (point médian).
+- Être rigoureuse et ne pas hésiter à pointer les vulnérabilités réelles.
+- Recommander des actions concrètes liées aux fiches de remédiation.
+`;
 
 export default async function handler(req: any, res: any) {
-  // CORS configuration
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const { consigne, contextAnswers } = req.body;
-
-  if (!consigne || !contextAnswers) {
-    return res.status(400).json({ error: "Missing consigne or contextAnswers" });
-  }
-
-  // Support multiple environment variable names for the API Key
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
-  
-  if (!apiKey) {
-    console.error("API Key is missing on server.");
-    return res.status(500).json({ error: "Server configuration error: API Key missing." });
-  }
-
   try {
+    // CORS configuration
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    // Body parsing safety
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { consigne, contextAnswers } = body || {};
+
+    if (!consigne || !contextAnswers) {
+      return res.status(400).json({ error: "Missing consigne or contextAnswers" });
+    }
+
+    // Support multiple environment variable names for the API Key
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+    
+    if (!apiKey) {
+      console.error("API Key is missing on server.");
+      return res.status(500).json({ error: "Server configuration error: API Key missing." });
+    }
+
     const ai = new GoogleGenAI({ apiKey });
     
     const userPrompt = `
@@ -116,6 +133,7 @@ INSTRUCTIONS DE CALCUL :
 
   } catch (error: any) {
     console.error("Erreur Gemini Server:", error);
+    // Ensure we always return JSON
     res.status(500).json({ error: error.message || "Erreur interne du serveur lors de l'analyse." });
   }
 }
