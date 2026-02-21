@@ -16,6 +16,10 @@ TON ANALYSE DOIT :
 - Recommander des actions concrètes liées aux fiches de remédiation.
 `;
 
+export const config = {
+  runtime: 'nodejs',
+};
+
 export default async function handler(req: any, res: any) {
   try {
     // CORS configuration
