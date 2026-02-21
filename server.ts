@@ -47,6 +47,7 @@ INSTRUCTIONS DE CALCUL :
    - 0-3 : "Vulnérabilité critique"
 `;
 
+    // Utilisation de gemini-3-pro-preview comme demandé initialement
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview", 
       contents: userPrompt,
@@ -54,36 +55,36 @@ INSTRUCTIONS DE CALCUL :
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
+          type: "OBJECT" as any,
           properties: {
-            reproductibilite: { type: Type.INTEGER },
-            contextualisation: { type: Type.INTEGER },
-            tacitite: { type: Type.INTEGER },
-            multimodalite: { type: Type.INTEGER },
-            score_total: { type: Type.INTEGER },
-            statut: { type: Type.STRING },
+            reproductibilite: { type: "INTEGER" as any },
+            contextualisation: { type: "INTEGER" as any },
+            tacitite: { type: "INTEGER" as any },
+            multimodalite: { type: "INTEGER" as any },
+            score_total: { type: "INTEGER" as any },
+            statut: { type: "STRING" as any },
             points_vigilance: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
+              type: "ARRAY" as any,
+              items: { type: "STRING" as any }
             },
             recommandations: {
-              type: Type.ARRAY,
+              type: "ARRAY" as any,
               items: {
-                type: Type.OBJECT,
+                type: "OBJECT" as any,
                 properties: {
-                  action: { type: Type.STRING },
-                  fiche: { type: Type.STRING }
+                  action: { type: "STRING" as any },
+                  fiche: { type: "STRING" as any }
                 },
                 required: ["action", "fiche"]
               }
             },
             justifications: {
-              type: Type.OBJECT,
+              type: "OBJECT" as any,
               properties: {
-                reproductibilite: { type: Type.STRING },
-                contextualisation: { type: Type.STRING },
-                tacitite: { type: Type.STRING },
-                multimodalite: { type: Type.STRING }
+                reproductibilite: { type: "STRING" as any },
+                contextualisation: { type: "STRING" as any },
+                tacitite: { type: "STRING" as any },
+                multimodalite: { type: "STRING" as any }
               }
             }
           },
