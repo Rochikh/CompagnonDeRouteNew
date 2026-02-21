@@ -41,10 +41,10 @@ INSTRUCTIONS DE CALCUL :
 1. Attribue un score de 0 à 3 pour chaque dimension (Reproductibilité, Contextualisation, Tacitité, Multimodalité).
 2. Le score_total DOIT être la somme exacte de ces 4 notes (0 à 12).
 3. Détermine le statut selon le score_total :
-   - 10-12 : "Robuste"
-   - 7-9 : "Vulnérabilité modérée"
-   - 4-6 : "Vulnérabilité élevée"
-   - 0-3 : "Vulnérabilité critique"
+   - 0-3 : "Robuste"
+   - 4-6 : "Vulnérabilité modérée"
+   - 7-9 : "Vulnérabilité élevée"
+   - 10-12 : "Vulnérabilité critique"
 `;
 
     // Utilisation de gemini-3-pro-preview comme demandé initialement

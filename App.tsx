@@ -141,45 +141,46 @@ const App: React.FC = () => {
   };
 
   const getProgressColor = (score: number) => {
-    if (score >= 10) return 'bg-emerald-500';
-    if (score >= 7) return 'bg-amber-500';
-    if (score >= 4) return 'bg-orange-500';
-    return 'bg-rose-500';
+    if (score >= 10) return 'bg-rose-500';
+    if (score >= 7) return 'bg-orange-500';
+    if (score >= 4) return 'bg-amber-500';
+    return 'bg-emerald-500';
   };
 
   const getQuickTestResult = () => {
     const values = Object.values(quickAnswers) as number[];
-    // Calcul inversé : on part de 16 (robustesse max théorique ici) et on enlève les points de vulnérabilité
-    // Chaque réponse "Oui" (2 pts) ou "Partiellement" (1 pt) dans le questionnaire actuel mesure la VULNÉRABILITÉ.
-    // Donc Score Robustesse = Max - Score Vulnérabilité
     const vulnerabilityScore = values.reduce((acc: number, val: number) => acc + val, 0);
-    const maxVulnerability = 16; // 8 questions * 2 pts
-    
-    // On convertit en score de robustesse sur 12 pour s'aligner avec l'audit IA
-    // Produit en croix : (16 - vulnerabilityScore) / 16 * 12
-    const robustnessScore = Math.round(((maxVulnerability - vulnerabilityScore) / maxVulnerability) * 12);
-    
     const answered = Object.keys(quickAnswers).length;
+    
+    if (answered === 0) return { score: 0, status: "", colorClass: "", advice: "", answered: 0 };
+
+    // On calcule le score sur 12 proportionnellement aux questions répondues
+    const maxPossibleForAnswered = answered * 2;
+    const scoreSur12 = Math.round((vulnerabilityScore / maxPossibleForAnswered) * 12);
+    
     let status = "";
     let colorClass = "";
     let advice = "";
 
-    // Échelle alignée sur l'audit IA (0-12)
-    if (robustnessScore >= 10) {
-      status = "Robustesse ÉLEVÉE";
-      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
-    } else if (robustnessScore >= 5) {
+    if (scoreSur12 >= 10) {
+      status = "Vulnérabilité CRITIQUE";
+      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
+      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
+    } else if (scoreSur12 >= 7) {
+      status = "Vulnérabilité ÉLEVÉE";
+      colorClass = "bg-orange-100 text-orange-800 border-orange-200";
+      advice = "Une refonte substantielle est nécessaire.";
+    } else if (scoreSur12 >= 4) {
       status = "Vulnérabilité MODÉRÉE";
       colorClass = "bg-amber-100 text-amber-800 border-amber-200";
       advice = "Consultez les Fiches 1 à 4 pour des adaptations ciblées.";
     } else {
-      status = "Vulnérabilité CRITIQUE";
-      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
-      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
+      status = "ROBUSTE";
+      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
     }
     
-    return { score: robustnessScore, status, colorClass, advice, answered };
+    return { score: scoreSur12, status, colorClass, advice, answered };
   };
 
   return (
@@ -369,7 +370,7 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Rapport de Robustesse</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Rapport de Vulnérabilité</h2>
                 <p className="text-slate-500 text-sm">{currentResult.date} — {currentResult.title}</p>
               </div>
               <div className="flex gap-2">
@@ -388,7 +389,7 @@ const App: React.FC = () => {
                 }} />
                 
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">
-                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Score de Robustesse</h4>
+                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Score de Vulnérabilité</h4>
                     <div className="flex items-baseline justify-center gap-1">
                         <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
                         <span className="text-2xl text-slate-300 font-bold">/12</span>
@@ -471,7 +472,7 @@ const App: React.FC = () => {
               <div className="text-center mb-10">
                 <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">3 minutes chrono</span>
                 <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">Diagnostic Rapide</h2>
-                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes. Plus votre score sur 12 est élevé, plus votre évaluation est robuste face à l'IA.</p>
+                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes. Plus votre score sur 12 est élevé, plus votre évaluation est vulnérable face à l'IA.</p>
               </div>
 
               <div className="space-y-6">
@@ -497,7 +498,7 @@ const App: React.FC = () => {
             {getQuickTestResult().answered > 0 && (
                 <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de Robustesse (Estimé)</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de Vulnérabilité (Estimé)</div>
                         <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 répondue(s)</div>
                     </div>
                     <div className="flex items-center gap-4 mb-4">
