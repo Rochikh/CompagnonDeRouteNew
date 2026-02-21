@@ -18,7 +18,6 @@ TON ANALYSE DOIT :
 
 export const config = {
   runtime: 'nodejs',
-  maxDuration: 60, // Tentative d'augmenter le timeout sur Vercel (fonctionne sur certains plans)
 };
 
 export default async function handler(req: any, res: any) {
