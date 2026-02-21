@@ -7,8 +7,10 @@ import { SYSTEM_PROMPT } from "../constants";
 export async function auditConsigne(consigne: string, contextAnswers: any) {
   
   // Initialisation du client conformément aux directives : 
-  // Utilisation directe de process.env.API_KEY via un paramètre nommé.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Utilisation directe de la clé API fournie.
+  const apiKey = "AIzaSyA9rYtQksHEkzT5LltoN4jx0bmXgjULKwA";
+  if (!apiKey) throw new Error("API Key is missing");
+  const ai = new GoogleGenAI({ apiKey });
   
   const userPrompt = `
 ANALYSE REQUISE POUR LA CONSIGNE :
@@ -31,7 +33,7 @@ INSTRUCTIONS DE CALCUL :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview", 
+      model: "gemini-2.5-flash-latest", 
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,

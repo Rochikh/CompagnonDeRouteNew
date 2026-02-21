@@ -85,15 +85,7 @@ const App: React.FC = () => {
     startLoadingMessages();
     
     try {
-      // Vérification de la clé API via l'interface AI Studio
-      if (window.aistudio?.hasSelectedApiKey && window.aistudio?.openSelectKey) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await window.aistudio.openSelectKey();
-        }
-      }
-
-      // L'API Key est gérée directement via process.env dans le service gemini
+      // L'API Key est gérée directement dans le service gemini
       const data = await auditConsigne(consigne, contextAnswers);
       
       const result: AuditResult = {
