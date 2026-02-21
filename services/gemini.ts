@@ -33,7 +33,7 @@ INSTRUCTIONS DE CALCUL :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-latest", 
+      model: "gemini-3.1-pro-preview", 
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_PROMPT,
