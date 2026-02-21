@@ -85,7 +85,7 @@ const App: React.FC = () => {
     startLoadingMessages();
     
     try {
-      // L'API Key est gérée directement dans le service gemini
+      // L'API Key est gérée directement dans le service gemini via VITE_GEMINI_API_KEY
       const data = await auditConsigne(consigne, contextAnswers);
       
       const result: AuditResult = {
