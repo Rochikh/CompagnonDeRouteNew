@@ -85,6 +85,14 @@ const App: React.FC = () => {
     startLoadingMessages();
     
     try {
+      // Vérification de la clé API via l'interface AI Studio
+      if (window.aistudio?.hasSelectedApiKey && window.aistudio?.openSelectKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+          await window.aistudio.openSelectKey();
+        }
+      }
+
       // L'API Key est gérée directement via process.env dans le service gemini
       const data = await auditConsigne(consigne, contextAnswers);
       
@@ -283,7 +291,7 @@ const App: React.FC = () => {
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
                     Nature des données ?
-                  </span>
+                  </p>
                   <p className="text-xs text-slate-500 italic ml-8">Le sujet est-il généraliste ou ancré dans un vécu unique ?</p>
                 </div>
                 <div className="grid gap-2">
@@ -305,7 +313,7 @@ const App: React.FC = () => {
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
                     Évaluation du processus ?
-                  </span>
+                  </p>
                   <p className="text-xs text-slate-500 italic ml-8">Notez-vous uniquement le résultat final ou les étapes de création ?</p>
                 </div>
                 <div className="grid gap-2">
