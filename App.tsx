@@ -56,6 +56,8 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const loadingIntervalRef = useRef<number | null>(null);
 
+  const [showAbout, setShowAbout] = useState(false);
+
   // Synchronisation locale du portefeuille
   useEffect(() => {
     localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
@@ -192,6 +194,13 @@ const App: React.FC = () => {
             <h1 className="font-bold text-slate-800 tracking-tight">Compagnon de route</h1>
           </div>
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowAbout(true)}
+              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Informations et confidentialité"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
             <button 
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
               className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
@@ -523,6 +532,51 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Modal À propos / Confidentialité */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-black text-slate-900">À propos</h3>
+                <button onClick={() => setShowAbout(false)} className="text-slate-400 hover:text-slate-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
+                <p>
+                  <strong>Compagnon de route</strong> est un outil d'aide à la décision pédagogique conçu pour auditer la robustesse des évaluations face aux outils d'IA générative.
+                </p>
+                
+                <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04 Pel6.062C3.06 11.029 3.29 12.889 4 14.35c.621 1.257 1.609 2.334 2.814 3.123L12 21l5.186-3.527c1.205-.789 2.193-1.866 2.814-3.123.71-1.461.94-3.321.938-5.288z" /></svg>
+                    Confidentialité des données
+                  </h4>
+                  <ul className="list-disc ml-4 space-y-1">
+                    <li><strong>Pas de base de données</strong> : Aucune donnée n'est stockée sur nos serveurs.</li>
+                    <li><strong>Stockage local</strong> : Votre "Portefeuille" est enregistré uniquement dans votre propre navigateur.</li>
+                    <li><strong>Anonymat</strong> : L'outil ne nécessite aucune création de compte.</li>
+                  </ul>
+                </div>
+
+                <p>
+                  Développé par <strong>Rochane Kherbouche</strong> (2026) comme ressource complémentaire à l'ouvrage <em>"Évaluer en formation à l'ère de l'IA générative"</em>.
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setShowAbout(false)}
+                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all"
+              >
+                J'ai compris
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
