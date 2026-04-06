@@ -1,13 +1,13 @@
 
 // Fonction pour auditer une consigne via le backend (pour sécuriser la clé API)
-export async function auditConsigne(consigne: string, contextAnswers: any) {
+export async function auditConsigne(consigne: string, contextAnswers: any, language: string = 'fr') {
   try {
     const response = await fetch('/api/audit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ consigne, contextAnswers }),
+      body: JSON.stringify({ consigne, contextAnswers, language }),
     });
 
     const text = await response.text();

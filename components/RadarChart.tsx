@@ -8,9 +8,15 @@ interface RadarChartProps {
     tacitite: number;
     multimodalite: number;
   };
+  labels: {
+    repro: string;
+    context: string;
+    tacit: string;
+    multi: string;
+  };
 }
 
-const RadarChart: React.FC<RadarChartProps> = ({ scores }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ scores, labels }) => {
   const size = 300;
   const padding = 50;
   const radius = (size - padding * 2) / 2;
@@ -18,10 +24,10 @@ const RadarChart: React.FC<RadarChartProps> = ({ scores }) => {
 
   const points = useMemo(() => {
     const categories = [
-      { key: 'reproductibilite', label: 'Reproductibilité' },
-      { key: 'contextualisation', label: 'Contextualisation' },
-      { key: 'tacitite', label: 'Tacitité' },
-      { key: 'multimodalite', label: 'Multimodalité' }
+      { key: 'reproductibilite', label: labels.repro },
+      { key: 'contextualisation', label: labels.context },
+      { key: 'tacitite', label: labels.tacit },
+      { key: 'multimodalite', label: labels.multi }
     ];
 
     return categories.map((cat, i) => {

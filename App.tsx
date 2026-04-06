@@ -4,32 +4,10 @@ import { AppStep, AuditResult, VulnerabilityStatus } from './types';
 import { auditConsigne } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
-
-const QUICK_QUESTIONS = [
-  "Cette évaluation repose-t-elle sur une production écrite réalisée hors surveillance ?",
-  "La consigne pourrait-elle être copiée telle quelle dans un assistant IA pour obtenir un résultat recevable ?",
-  "L'évaluation mobilise-t-elle des données génériques accessibles en ligne (plutôt que locales/personnelles) ?",
-  "Le produit final est-il le seul objet évalué, sans trace du processus de production ?",
-  "L'évaluation se déroule-t-elle entièrement en mode asynchrone, sans interaction temps réel ?",
-  "Les critères d'évaluation portant-ils exclusivement sur le contenu (sans dimension réflexive) ?",
-  "Un apprenant pourrait-il obtenir une note satisfaisante sans pouvoir expliquer oralement ses choix ?",
-  "Vos collègues utilisent-ils des consignes identiques ou très similaires d'une session à l'autre ?"
-];
-
-const LOADING_MESSAGES = [
-  "Analyse de la structure sémantique...",
-  "Évaluation du potentiel de reproduction par l'IA...",
-  "Calcul du degré de contextualisation requis...",
-  "Identification des dimensions tacites et réflexives...",
-  "Vérification des leviers de multimodalité...",
-  "Consultation de la base de remédiation (Fiches 1-8)...",
-  "Génération des recommandations stratégiques...",
-  "Finalisation du diagnostic de robustesse...",
-  "L'IA peaufine ses conseils pédagogiques...",
-  "Encore quelques secondes, le rapport arrive !"
-];
+import { t, QUICK_QUESTIONS, LOADING_MESSAGES } from './locales';
 
 const App: React.FC = () => {
+  const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [consigne, setConsigne] = useState('');
   const [contextAnswers, setContextAnswers] = useState({
@@ -65,10 +43,10 @@ const App: React.FC = () => {
 
   const startLoadingMessages = () => {
     let index = 0;
-    setLoadingStep(LOADING_MESSAGES[0]);
+    setLoadingStep(LOADING_MESSAGES[lang][0]);
     loadingIntervalRef.current = window.setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES.length;
-      setLoadingStep(LOADING_MESSAGES[index]);
+      index = (index + 1) % LOADING_MESSAGES[lang].length;
+      setLoadingStep(LOADING_MESSAGES[lang][index]);
     }, 2500);
   };
 
@@ -96,7 +74,7 @@ const App: React.FC = () => {
       }
 
       // L'API Key est gérée directement dans le service gemini / backend
-      const data = await auditConsigne(consigne, contextAnswers);
+      const data = await auditConsigne(consigne, contextAnswers, lang);
       
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
@@ -120,7 +98,7 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Audit fail:", err);
-      setError(err.message || "L'analyse a pris trop de temps ou a échoué. Veuillez réessayer.");
+      setError(err.message || t[lang].analysisInterrupted);
     } finally {
       setLoading(false);
       stopLoadingMessages();
@@ -130,7 +108,7 @@ const App: React.FC = () => {
   const copyAsJson = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
-    alert("Copié dans le presse-papier !");
+    alert(t[lang].copied);
   };
 
   const getStatusColor = (status: string) => {
@@ -165,21 +143,21 @@ const App: React.FC = () => {
     let advice = "";
 
     if (scoreSur12 >= 10) {
-      status = "Vulnérabilité CRITIQUE";
+      status = t[lang].statusCritique;
       colorClass = "bg-rose-100 text-rose-800 border-rose-200";
-      advice = "Reprendre le protocole complet du chapitre. Consigne très exposée.";
+      advice = t[lang].adviceCritique;
     } else if (scoreSur12 >= 7) {
-      status = "Vulnérabilité ÉLEVÉE";
+      status = t[lang].statusElevee;
       colorClass = "bg-orange-100 text-orange-800 border-orange-200";
-      advice = "Une refonte substantielle est nécessaire.";
+      advice = t[lang].adviceElevee;
     } else if (scoreSur12 >= 4) {
-      status = "Vulnérabilité MODÉRÉE";
+      status = t[lang].statusModeree;
       colorClass = "bg-amber-100 text-amber-800 border-amber-200";
-      advice = "Consultez les Fiches 1 à 4 pour des adaptations ciblées.";
+      advice = t[lang].adviceModeree;
     } else {
-      status = "ROBUSTE";
+      status = t[lang].statusRobuste;
       colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-      advice = "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.";
+      advice = t[lang].adviceRobuste;
     }
     
     return { score: scoreSur12, status, colorClass, advice, answered };
@@ -191,13 +169,19 @@ const App: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setStep(AppStep.WELCOME); setError(null); }}>
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-indigo-200 shadow-lg">C</div>
-            <h1 className="font-bold text-slate-800 tracking-tight">Compagnon de route</h1>
+            <h1 className="font-bold text-slate-800 tracking-tight">{t[lang].appTitle}</h1>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
+              className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            >
+              {lang === 'fr' ? 'EN' : 'FR'}
+            </button>
             <button 
               onClick={() => setShowAbout(true)}
               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
-              title="Informations et confidentialité"
+              title={t[lang].about}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
@@ -205,7 +189,7 @@ const App: React.FC = () => {
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
               className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
             >
-              Portefeuille ({portfolio.length})
+              {t[lang].portfolio} ({portfolio.length})
             </button>
           </div>
         </div>
@@ -217,7 +201,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <h3 className="font-bold">Analyse interrompue</h3>
+                <h3 className="font-bold">{t[lang].analysisInterrupted}</h3>
               </div>
             </div>
             <p className="text-sm opacity-90 leading-relaxed">{error}</p>
@@ -228,12 +212,12 @@ const App: React.FC = () => {
           <div className="space-y-12 py-12 animate-in fade-in duration-500">
             <div className="text-center space-y-4">
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
-                Mesurez la robustesse <br className="hidden md:block"/>
-                de vos évaluations <br className="hidden md:block"/>
-                <span className="text-indigo-600">à l'ère de l'IA générative</span>
+                {t[lang].heroTitle1} <br className="hidden md:block"/>
+                {t[lang].heroTitle2} <br className="hidden md:block"/>
+                <span className="text-indigo-600">{t[lang].heroTitle3}</span>
               </h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                Basé sur le protocole d'audit développé dans <strong>"Évaluer en formation à l'ère de l'IA générative"</strong> (Rochane Kherbouche, 2026).
+                {t[lang].heroSubtitle}
               </p>
             </div>
 
@@ -242,15 +226,15 @@ const App: React.FC = () => {
                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Audit détaillé</h3>
-                <p className="text-slate-500 leading-relaxed">Analysez une consigne précise sur 4 dimensions critiques avec l'IA.</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{t[lang].btnAuditTitle}</h3>
+                <p className="text-slate-500 leading-relaxed">{t[lang].btnAuditDesc}</p>
               </button>
               <button onClick={() => setStep(AppStep.QUICK_TEST)} className="p-8 bg-white border border-slate-200 rounded-3xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-xl active:scale-[0.99]">
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Diagnostic rapide</h3>
-                <p className="text-slate-500 leading-relaxed">8 questions pour évaluer votre profil de vulnérabilité sans IA.</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{t[lang].btnQuickTitle}</h3>
+                <p className="text-slate-500 leading-relaxed">{t[lang].btnQuickDesc}</p>
               </button>
             </div>
           </div>
@@ -259,11 +243,11 @@ const App: React.FC = () => {
         {step === AppStep.AUDIT_INPUT && (
           <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <h2 className="text-2xl font-bold text-slate-900">1. Saisie de la consigne</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{t[lang].step1Title}</h2>
               <textarea 
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
-                placeholder="Ex: 'Rédigez un rapport de 5 pages sur l'impact de la RSE...'"
+                placeholder={t[lang].step1Placeholder}
                 className="w-full h-56 p-5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-slate-700 leading-relaxed"
               />
               <button 
@@ -271,7 +255,7 @@ const App: React.FC = () => {
                 onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} 
                 className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 disabled:opacity-30 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
               >
-                Suivant : Définir le contexte
+                {t[lang].btnNextContext}
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </button>
             </div>
@@ -282,24 +266,20 @@ const App: React.FC = () => {
           <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-slate-900">2. Contexte de passage</h2>
-                <p className="text-sm text-slate-500 leading-relaxed">Précisez les conditions réelles de l'examen pour affiner le diagnostic.</p>
+                <h2 className="text-2xl font-bold text-slate-900">{t[lang].step2Title}</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">{t[lang].step2Subtitle}</p>
               </div>
               
               <div className="space-y-4">
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">1</span>
-                    Composante orale ou synchrone ?
+                    {t[lang].q1Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">L'apprenant·e doit-il/elle s'exprimer de vive voix ou en direct ?</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q1Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {[
-                    { label: 'Oui obligatoire', ex: 'Soutenance devant jury, examen oral en classe.' },
-                    { label: 'Oui optionnelle', ex: 'Participation orale possible mais non notée.' },
-                    { label: 'Non, asynchrone', ex: 'Dépôt d\'un document PDF ou fichier à distance.' }
-                  ].map(o => (
+                  {t[lang].q1Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.synchrone === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -312,16 +292,12 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
-                    Nature des données ?
+                    {t[lang].q2Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">Le sujet est-il généraliste ou ancré dans un vécu unique ?</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q2Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {[
-                    { label: 'Données locales / confidentielles', ex: 'Problématique interne à une PME précise, vécu personnel.' },
-                    { label: 'Partiellement spécifiques', ex: 'Étude d\'un secteur d\'activité mais sans entreprise précise.' },
-                    { label: 'Données génériques', ex: 'Sujet théorique (ex: "Le rôle de l\'IA en RH"), trouvable sur le web.' }
-                  ].map(o => (
+                  {t[lang].q2Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, donnees: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.donnees === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -334,16 +310,12 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
-                    Évaluation du processus ?
+                    {t[lang].q3Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">Notez-vous uniquement le résultat final ou les étapes de création ?</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q3Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {[
-                    { label: 'Processus documenté et évalué', ex: 'Journal de bord requis, étapes notées au fil de l\'eau.' },
-                    { label: 'Demandé mais non évalué', ex: 'Brouillons demandés mais seule la note finale compte.' },
-                    { label: 'Seul le produit final', ex: 'Seul le rapport final est rendu et noté.' }
-                  ].map(o => (
+                  {t[lang].q3Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, processus: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.processus === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -366,9 +338,9 @@ const App: React.FC = () => {
                         <svg className="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <span className="animate-pulse">{loadingStep}</span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">L'analyse IA peut prendre jusqu'à 15 secondes</span>
+                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">{t[lang].loadingWait}</span>
                     </div>
-                  ) : "Lancer l'audit de robustesse"}
+                  ) : t[lang].btnLaunchAudit}
                 </button>
               </div>
             </div>
@@ -379,26 +351,34 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Rapport de Vulnérabilité</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t[lang].reportTitle}</h2>
                 <p className="text-slate-500 text-sm">{currentResult.date} — {currentResult.title}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={copyAsJson} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-all">Copier JSON</button>
-                <button onClick={() => setStep(AppStep.WELCOME)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Nouveau diagnostic</button>
+                <button onClick={copyAsJson} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-all">{t[lang].btnCopyJson}</button>
+                <button onClick={() => setStep(AppStep.WELCOME)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">{t[lang].btnNewAudit}</button>
               </div>
             </div>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
-                <RadarChart scores={{
-                  reproductibilite: currentResult.reproductibilite,
-                  contextualisation: currentResult.contextualisation,
-                  tacitite: currentResult.tacitite,
-                  multimodalite: currentResult.multimodalite
-                }} />
+                <RadarChart 
+                  scores={{
+                    reproductibilite: currentResult.reproductibilite,
+                    contextualisation: currentResult.contextualisation,
+                    tacitite: currentResult.tacitite,
+                    multimodalite: currentResult.multimodalite
+                  }} 
+                  labels={{
+                    repro: t[lang].radarRepro,
+                    context: t[lang].radarContext,
+                    tacit: t[lang].radarTacit,
+                    multi: t[lang].radarMulti
+                  }}
+                />
                 
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">
-                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">Score de Vulnérabilité</h4>
+                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t[lang].scoreTitle}</h4>
                     <div className="flex items-baseline justify-center gap-1">
                         <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
                         <span className="text-2xl text-slate-300 font-bold">/12</span>
@@ -413,7 +393,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                <h3 className="font-bold text-lg text-slate-800 border-b border-slate-50 pb-4">Points de vigilance</h3>
+                <h3 className="font-bold text-lg text-slate-800 border-b border-slate-50 pb-4">{t[lang].vigilancePoints}</h3>
                 <div className="space-y-3">
                   {currentResult.points_vigilance.map((v, i) => (
                     <div key={i} className="flex gap-3 text-sm text-slate-600 leading-relaxed group">
@@ -426,10 +406,10 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl space-y-8">
-              <h3 className="text-2xl font-black tracking-tight">Recommandations stratégiques</h3>
+              <h3 className="text-2xl font-black tracking-tight">{t[lang].strategicRecs}</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 {currentResult.recommandations.map((rec, i) => {
-                  const fiche = FICHES[rec.fiche];
+                  const fiche = FICHES[lang][rec.fiche];
                   return (
                     <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all group">
                       <p className="font-medium text-slate-200 leading-relaxed mb-4">{rec.action}</p>
@@ -449,12 +429,12 @@ const App: React.FC = () => {
         {step === AppStep.PORTFOLIO && (
           <div className="space-y-8 animate-in fade-in duration-300">
              <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-black text-slate-900">Portefeuille</h2>
+              <h2 className="text-3xl font-black text-slate-900">{t[lang].portfolio}</h2>
             </div>
             {portfolio.length === 0 ? (
                <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-                  <p className="font-medium">Votre portefeuille est vide.</p>
-                  <button onClick={() => setStep(AppStep.WELCOME)} className="mt-4 text-indigo-600 font-bold hover:underline">Analyser une première consigne</button>
+                  <p className="font-medium">{t[lang].portfolioEmpty}</p>
+                  <button onClick={() => setStep(AppStep.WELCOME)} className="mt-4 text-indigo-600 font-bold hover:underline">{t[lang].portfolioStart}</button>
                </div>
             ) : (
               <div className="grid gap-4">
@@ -479,20 +459,20 @@ const App: React.FC = () => {
            <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
               <div className="text-center mb-10">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">3 minutes chrono</span>
-                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">Diagnostic Rapide</h2>
-                <p className="text-slate-600 max-w-lg mx-auto">Répondez aux 8 questions suivantes. Plus votre score sur 12 est élevé, plus votre évaluation est vulnérable face à l'IA.</p>
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">{t[lang].quickTestTime}</span>
+                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">{t[lang].btnQuickTitle}</h2>
+                <p className="text-slate-600 max-w-lg mx-auto">{t[lang].quickTestIntro}</p>
               </div>
 
               <div className="space-y-6">
-                {QUICK_QUESTIONS.map((q, idx) => (
+                {QUICK_QUESTIONS[lang].map((q, idx) => (
                   <div key={idx} className="pb-6 border-b border-slate-100 last:border-0 animate-in fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
                     <p className="font-medium text-slate-800 mb-3">{q}</p>
                     <div className="flex gap-2">
                       {[
-                        { val: 2, label: 'Oui (+2)' },
-                        { val: 1, label: 'Partiellement (+1)' },
-                        { val: 0, label: 'Non (0)' }
+                        { val: 2, label: t[lang].quickTestYes },
+                        { val: 1, label: t[lang].quickTestPartial },
+                        { val: 0, label: t[lang].quickTestNo }
                       ].map(opt => (
                         <button key={opt.val} onClick={() => setQuickAnswers(prev => ({...prev, [idx]: opt.val}))} className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === opt.val ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
                           {opt.label}
@@ -507,8 +487,8 @@ const App: React.FC = () => {
             {getQuickTestResult().answered > 0 && (
                 <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-black uppercase tracking-widest opacity-70">Score de Vulnérabilité (Estimé)</div>
-                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 répondue(s)</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-70">{t[lang].quickTestScoreEst}</div>
+                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 {t[lang].quickTestAnswered}</div>
                     </div>
                     <div className="flex items-center gap-4 mb-4">
                         <div className="flex items-baseline">
@@ -517,7 +497,7 @@ const App: React.FC = () => {
                         </div>
                         <div>
                             <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
-                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">Indice de confiance</div>
+                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">{t[lang].quickTestConfidence}</div>
                         </div>
                     </div>
                     <p className="font-medium text-sm leading-relaxed border-t border-current border-opacity-20 pt-3 opacity-90">
@@ -527,7 +507,7 @@ const App: React.FC = () => {
             )}
             
             <div className="text-center pt-8">
-               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">Retour à l'accueil</button>
+               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">{t[lang].quickTestBack}</button>
             </div>
           </div>
         )}
@@ -539,7 +519,7 @@ const App: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-black text-slate-900">À propos</h3>
+                <h3 className="text-2xl font-black text-slate-900">{t[lang].aboutTitle}</h3>
                 <button onClick={() => setShowAbout(false)} className="text-slate-400 hover:text-slate-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -547,23 +527,23 @@ const App: React.FC = () => {
               
               <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
                 <p>
-                  <strong>Compagnon de route</strong> est un outil d'aide à la décision pédagogique conçu pour auditer la robustesse des évaluations face aux outils d'IA générative.
+                  <strong>{t[lang].appTitle}</strong> {t[lang].aboutP1}
                 </p>
                 
                 <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
                   <h4 className="font-bold text-slate-800 flex items-center gap-2">
                     <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04 Pel6.062C3.06 11.029 3.29 12.889 4 14.35c.621 1.257 1.609 2.334 2.814 3.123L12 21l5.186-3.527c1.205-.789 2.193-1.866 2.814-3.123.71-1.461.94-3.321.938-5.288z" /></svg>
-                    Confidentialité des données
+                    {t[lang].aboutPrivacyTitle}
                   </h4>
                   <ul className="list-disc ml-4 space-y-1">
-                    <li><strong>Pas de base de données</strong> : Aucune donnée n'est stockée sur nos serveurs.</li>
-                    <li><strong>Stockage local</strong> : Votre "Portefeuille" est enregistré uniquement dans votre propre navigateur.</li>
-                    <li><strong>Anonymat</strong> : L'outil ne nécessite aucune création de compte.</li>
+                    <li>{t[lang].aboutPrivacyDesc1}</li>
+                    <li>{t[lang].aboutPrivacyDesc2}</li>
+                    <li>{t[lang].aboutPrivacyDesc3}</li>
                   </ul>
                 </div>
 
                 <p>
-                  Développé par <strong>Rochane Kherbouche</strong> (2026) comme ressource complémentaire à l'ouvrage <em>"Évaluer en formation à l'ère de l'IA générative"</em>.
+                  {t[lang].aboutP2}
                 </p>
               </div>
 
@@ -571,7 +551,7 @@ const App: React.FC = () => {
                 onClick={() => setShowAbout(false)}
                 className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all"
               >
-                J'ai compris
+                {t[lang].aboutBtnClose}
               </button>
             </div>
           </div>
