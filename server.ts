@@ -45,6 +45,8 @@ CALCULATION INSTRUCTIONS:
    - 4-6: "MODERATE Vulnerability"
    - 7-9: "HIGH Vulnerability"
    - 10-12: "CRITICAL Vulnerability"
+
+CRITICAL REQUIREMENT: ALL generated text in your JSON response (except the exact sheet keys) MUST be in ENGLISH.
 ` : `
 ANALYSE REQUISE POUR LA CONSIGNE :
 "${consigne}"
@@ -82,6 +84,7 @@ YOUR ANALYSIS MUST:
 - Be rigorous and not hesitate to point out real vulnerabilities.
 - Recommend concrete actions linked to the remediation sheets.
 - The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+- CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
 ` : SYSTEM_PROMPT,
         responseMimeType: "application/json",
         responseSchema: {
