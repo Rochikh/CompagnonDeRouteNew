@@ -113,10 +113,10 @@ const App: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const s = (status || "").toLowerCase();
-    if (s.includes('robuste')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (s.includes('modérée')) return 'bg-amber-100 text-amber-800 border-amber-200';
-    if (s.includes('élevée')) return 'bg-orange-100 text-orange-800 border-orange-200';
-    if (s.includes('critique')) return 'bg-rose-100 text-rose-800 border-rose-200';
+    if (s.includes('robuste') || s.includes('robust')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    if (s.includes('modérée') || s.includes('moderate')) return 'bg-amber-100 text-amber-800 border-amber-200';
+    if (s.includes('élevée') || s.includes('high')) return 'bg-orange-100 text-orange-800 border-orange-200';
+    if (s.includes('critique') || s.includes('critical')) return 'bg-rose-100 text-rose-800 border-rose-200';
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 

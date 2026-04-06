@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
 // Inline constant to avoid import resolution issues in serverless environment
-const SYSTEM_PROMPT = `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
+const SYSTEM_PROMPT = {
+  fr: `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
 Ta mission est d'analyser la robustesse d'une consigne d'évaluation en te basant sur la doctrine de Rochane Kherbouche (2026).
 
 DOCTRINE D'ANALYSE :
@@ -14,7 +15,23 @@ TON ANALYSE DOIT :
 - Utiliser l'écriture inclusive (point médian).
 - Être rigoureuse et ne pas hésiter à pointer les vulnérabilités réelles.
 - Recommander des actions concrètes liées aux fiches de remédiation.
-`;
+- Les noms des fiches DOIVENT correspondre exactement à ces clés : "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+`,
+  en: `You are the pedagogical expert "Journey Companion", specialized in auditing assessments against generative AI.
+Your mission is to analyze the robustness of an assessment prompt based on Rochane Kherbouche's doctrine (2026).
+
+ANALYSIS DOCTRINE:
+1. Reproducibility: AI's ability to produce an acceptable result from the raw prompt (0=Perfect AI, 3=Incapable AI).
+2. Contextualization: Degree of anchoring in local, personal, or non-online documented data (0=Generic, 3=Ultra-specific).
+3. Tacitness: Presence of metacognitive dimensions or oral justification of choices (0=Pure product, 3=Strong reflexivity).
+4. Multimodality: Diversity of media and synchronous/physical component (0=Asynchronous text, 3=Physical/synchronous presence).
+
+YOUR ANALYSIS MUST:
+- Be rigorous and not hesitate to point out real vulnerabilities.
+- Recommend concrete actions linked to the remediation sheets.
+- The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+`
+};
 
 export const config = {
   runtime: 'nodejs',
@@ -42,7 +59,7 @@ export default async function handler(req: any, res: any) {
 
     // Body parsing safety
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { consigne, contextAnswers } = body || {};
+    const { consigne, contextAnswers, language = 'fr' } = body || {};
 
     if (!consigne || !contextAnswers) {
       return res.status(400).json({ error: "Missing consigne or contextAnswers" });
@@ -58,7 +75,24 @@ export default async function handler(req: any, res: any) {
 
     const ai = new GoogleGenAI({ apiKey });
     
-    const userPrompt = `
+    const userPrompt = language === 'en' ? `
+REQUIRED ANALYSIS FOR THE PROMPT:
+"${consigne}"
+
+ASSESSMENT CONTEXT:
+- Modality: ${contextAnswers.synchrone}
+- Data: ${contextAnswers.donnees}
+- Process: ${contextAnswers.processus}
+
+CALCULATION INSTRUCTIONS:
+1. Assign a score from 0 to 3 for each dimension (Reproducibility, Contextualization, Tacitness, Multimodality).
+2. The score_total MUST be the exact sum of these 4 scores (0 to 12).
+3. Determine the status according to the score_total:
+   - 0-3: "ROBUST"
+   - 4-6: "MODERATE Vulnerability"
+   - 7-9: "HIGH Vulnerability"
+   - 10-12: "CRITICAL Vulnerability"
+` : `
 ANALYSE REQUISE POUR LA CONSIGNE :
 "${consigne}"
 
@@ -82,7 +116,7 @@ INSTRUCTIONS DE CALCUL :
       model: "gemini-3-flash-preview", 
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr,
         responseMimeType: "application/json",
         responseSchema: {
           type: "OBJECT" as any,
