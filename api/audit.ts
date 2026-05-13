@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 // Inline constant to avoid import resolution issues in serverless environment
 const SYSTEM_PROMPT = {
   fr: `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
@@ -34,13 +32,53 @@ YOUR ANALYSIS MUST:
 `
 };
 
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    reproductibilite: { type: "integer" },
+    contextualisation: { type: "integer" },
+    tacitite: { type: "integer" },
+    multimodalite: { type: "integer" },
+    score_total: { type: "integer" },
+    statut: { type: "string" },
+    points_vigilance: {
+      type: "array",
+      items: { type: "string" }
+    },
+    recommandations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          action: { type: "string" },
+          fiche: { type: "string" }
+        },
+        required: ["action", "fiche"],
+        additionalProperties: false
+      }
+    },
+    justifications: {
+      type: "object",
+      properties: {
+        reproductibilite: { type: "string" },
+        contextualisation: { type: "string" },
+        tacitite: { type: "string" },
+        multimodalite: { type: "string" }
+      },
+      required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite"],
+      additionalProperties: false
+    }
+  },
+  required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite", "score_total", "statut", "points_vigilance", "recommandations", "justifications"],
+  additionalProperties: false
+};
+
 export const config = {
   runtime: 'nodejs',
 };
 
 export default async function handler(req: any, res: any) {
   try {
-    // CORS configuration
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -58,7 +96,6 @@ export default async function handler(req: any, res: any) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Body parsing safety
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { consigne, contextAnswers, language = 'fr' } = body || {};
 
@@ -66,16 +103,13 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Missing consigne or contextAnswers" });
     }
 
-    // Support multiple environment variable names for the API Key
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
-    
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+
     if (!apiKey) {
       console.error("API Key is missing on server.");
       return res.status(500).json({ error: "Server configuration error: API Key missing." });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    
     const userPrompt = language === 'en' ? `
 REQUIRED ANALYSIS FOR THE PROMPT:
 "${consigne}"
@@ -95,6 +129,7 @@ CALCULATION INSTRUCTIONS:
    - 10-12: "CRITICAL Vulnerability"
 
 CRITICAL REQUIREMENT: ALL generated text in your JSON response (except the exact sheet keys) MUST be in ENGLISH.
+Respond ONLY with a valid JSON object matching the required schema, with no markdown fences or commentary.
 ` : `
 ANALYSE REQUISE POUR LA CONSIGNE :
 "${consigne}"
@@ -112,57 +147,43 @@ INSTRUCTIONS DE CALCUL :
    - 4-6 : "Vulnérabilité modérée"
    - 7-9 : "Vulnérabilité élevée"
    - 10-12 : "Vulnérabilité critique"
+
+Réponds UNIQUEMENT avec un objet JSON valide conforme au schéma requis, sans balises markdown ni commentaire.
 `;
 
-    // Utilisation de gemini-3-flash-preview pour éviter les timeouts Vercel (limite de 10s en gratuit)
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT" as any,
-          properties: {
-            reproductibilite: { type: "INTEGER" as any },
-            contextualisation: { type: "INTEGER" as any },
-            tacitite: { type: "INTEGER" as any },
-            multimodalite: { type: "INTEGER" as any },
-            score_total: { type: "INTEGER" as any },
-            statut: { type: "STRING" as any },
-            points_vigilance: {
-              type: "ARRAY" as any,
-              items: { type: "STRING" as any }
-            },
-            recommandations: {
-              type: "ARRAY" as any,
-              items: {
-                type: "OBJECT" as any,
-                properties: {
-                  action: { type: "STRING" as any },
-                  fiche: { type: "STRING" as any }
-                },
-                required: ["action", "fiche"]
-              }
-            },
-            justifications: {
-              type: "OBJECT" as any,
-              properties: {
-                reproductibilite: { type: "STRING" as any },
-                contextualisation: { type: "STRING" as any },
-                tacitite: { type: "STRING" as any },
-                multimodalite: { type: "STRING" as any }
-              }
-            }
+    const openrouterRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "deepseek/deepseek-v4-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "audit_result",
+            strict: true,
+            schema: RESPONSE_SCHEMA,
           },
-          required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite", "score_total", "statut", "points_vigilance", "recommandations"]
-        }
-      }
+        },
+      }),
     });
 
-    const text = response.text;
+    if (!openrouterRes.ok) {
+      const errText = await openrouterRes.text();
+      console.error("OpenRouter error:", openrouterRes.status, errText);
+      return res.status(500).json({ error: `OpenRouter error ${openrouterRes.status}: ${errText}` });
+    }
+
+    const data = await openrouterRes.json();
+    const text = data?.choices?.[0]?.message?.content;
     if (!text) throw new Error("Le moteur d'IA n'a pas renvoyé de données.");
-    
+
     let result;
     try {
       result = JSON.parse(text.trim());
@@ -174,8 +195,7 @@ INSTRUCTIONS DE CALCUL :
     res.status(200).json(result);
 
   } catch (error: any) {
-    console.error("Erreur Gemini Server:", error);
-    // Ensure we always return JSON
+    console.error("Erreur OpenRouter Server:", error);
     res.status(500).json({ error: error.message || "Erreur interne du serveur lors de l'analyse." });
   }
 }
