@@ -132,17 +132,15 @@ YOUR ANALYSIS MUST:
       body: JSON.stringify({
         model: "deepseek/deepseek-v4-flash",
         messages: [
-          { role: "system", content: systemInstruction },
+          {
+            role: "system",
+            content: systemInstruction
+              + "\n\nRESPONSE JSON SCHEMA (respond with a single JSON object matching this schema, no markdown):\n"
+              + JSON.stringify(RESPONSE_SCHEMA),
+          },
           { role: "user", content: userPrompt },
         ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "audit_result",
-            strict: true,
-            schema: RESPONSE_SCHEMA,
-          },
-        },
+        response_format: { type: "json_object" },
       }),
     });
 

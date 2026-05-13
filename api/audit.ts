@@ -160,17 +160,15 @@ Réponds UNIQUEMENT avec un objet JSON valide conforme au schéma requis, sans b
       body: JSON.stringify({
         model: "deepseek/deepseek-v4-flash",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr },
+          {
+            role: "system",
+            content: (SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr)
+              + "\n\nRESPONSE JSON SCHEMA (respond with a single JSON object matching this schema, no markdown):\n"
+              + JSON.stringify(RESPONSE_SCHEMA),
+          },
           { role: "user", content: userPrompt },
         ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "audit_result",
-            strict: true,
-            schema: RESPONSE_SCHEMA,
-          },
-        },
+        response_format: { type: "json_object" },
       }),
     });
 
