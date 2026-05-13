@@ -19,10 +19,26 @@ app.post("/api/audit", async (req, res) => {
     return res.status(400).json({ error: "Missing consigne or contextAnswers" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+  const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+  const apiKey = rawApiKey
+    ? rawApiKey.trim().replace(/^['"]|['"]$/g, "").trim()
+    : "";
+
   if (!apiKey) {
     console.error("API Key is missing on server.");
-    return res.status(500).json({ error: "Server configuration error: API Key missing." });
+    return res.status(500).json({
+      error: "Server configuration error: GEMINI_API_KEY is missing. Add it to your .env file (see .env.example) and restart the dev server."
+    });
+  }
+
+  if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(apiKey)) {
+    console.error(
+      `API Key has an unexpected format (length=${apiKey.length}, prefix=${apiKey.slice(0, 4)}). ` +
+      `Google AI Studio keys start with "AIza".`
+    );
+    return res.status(500).json({
+      error: "Server configuration error: GEMINI_API_KEY format is invalid. Generate a key at https://aistudio.google.com/apikey and paste it raw (no quotes, no spaces)."
+    });
   }
 
   try {
@@ -141,7 +157,16 @@ YOUR ANALYSIS MUST:
 
   } catch (error: any) {
     console.error("Erreur Gemini Server:", error);
-    res.status(500).json({ error: error.message || "Erreur interne du serveur lors de l'analyse." });
+    const message: string = error?.message || "";
+    const status: number = typeof error?.status === "number" ? error.status : 500;
+
+    if (status === 400 && /API[_ ]?KEY[_ ]?INVALID|API key not valid/i.test(message)) {
+      return res.status(500).json({
+        error: "Gemini rejected the API key as invalid. Generate a fresh key at https://aistudio.google.com/apikey, ensure the Generative Language API is enabled for that key's project, and update GEMINI_API_KEY."
+      });
+    }
+
+    res.status(500).json({ error: message || "Erreur interne du serveur lors de l'analyse." });
   }
 });
 
