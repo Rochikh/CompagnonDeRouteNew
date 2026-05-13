@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 // Inline constant to avoid import resolution issues in serverless environment
 const SYSTEM_PROMPT = {
   fr: `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
@@ -16,6 +14,25 @@ TON ANALYSE DOIT :
 - Être rigoureuse et ne pas hésiter à pointer les vulnérabilités réelles.
 - Recommander des actions concrètes liées aux fiches de remédiation.
 - Les noms des fiches DOIVENT correspondre exactement à ces clés : "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+
+FORMAT DE SORTIE :
+Tu DOIS répondre exclusivement avec un objet JSON valide (sans texte autour, sans bloc markdown) avec EXACTEMENT cette structure :
+{
+  "reproductibilite": <entier 0-3>,
+  "contextualisation": <entier 0-3>,
+  "tacitite": <entier 0-3>,
+  "multimodalite": <entier 0-3>,
+  "score_total": <entier 0-12, somme exacte des 4 notes>,
+  "statut": <chaîne>,
+  "points_vigilance": [<chaînes>],
+  "recommandations": [{"action": <chaîne>, "fiche": <clé exacte de fiche>}],
+  "justifications": {
+    "reproductibilite": <chaîne>,
+    "contextualisation": <chaîne>,
+    "tacitite": <chaîne>,
+    "multimodalite": <chaîne>
+  }
+}
 `,
   en: `You are the pedagogical expert "Journey Companion", specialized in auditing assessments against generative AI.
 Your mission is to analyze the robustness of an assessment prompt based on Rochane Kherbouche's doctrine (2026).
@@ -31,8 +48,30 @@ YOUR ANALYSIS MUST:
 - Recommend concrete actions linked to the remediation sheets.
 - The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
 - CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
+
+OUTPUT FORMAT:
+You MUST respond ONLY with a valid JSON object (no surrounding text, no markdown fences) following EXACTLY this structure:
+{
+  "reproductibilite": <int 0-3>,
+  "contextualisation": <int 0-3>,
+  "tacitite": <int 0-3>,
+  "multimodalite": <int 0-3>,
+  "score_total": <int 0-12, exact sum of the 4 scores>,
+  "statut": <string>,
+  "points_vigilance": [<strings>],
+  "recommandations": [{"action": <string>, "fiche": <exact sheet key>}],
+  "justifications": {
+    "reproductibilite": <string>,
+    "contextualisation": <string>,
+    "tacitite": <string>,
+    "multimodalite": <string>
+  }
+}
 `
 };
+
+const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export const config = {
   runtime: 'nodejs',
@@ -40,7 +79,6 @@ export const config = {
 
 export default async function handler(req: any, res: any) {
   try {
-    // CORS configuration
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -58,7 +96,6 @@ export default async function handler(req: any, res: any) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // Body parsing safety
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { consigne, contextAnswers, language = 'fr' } = body || {};
 
@@ -66,10 +103,12 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Missing consigne or contextAnswers" });
     }
 
-    // Support multiple environment variable names for the API Key.
     // Sanitize: trim whitespace/newlines and strip wrapping quotes that often
     // sneak in when keys are pasted into Vercel env settings.
-    const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+    const rawApiKey =
+      process.env.OPENROUTER_API_KEY ||
+      process.env.VITE_API_KEY ||
+      process.env.API_KEY;
     const apiKey = rawApiKey
       ? rawApiKey.trim().replace(/^['"]|['"]$/g, "").trim()
       : "";
@@ -77,22 +116,10 @@ export default async function handler(req: any, res: any) {
     if (!apiKey) {
       console.error("API Key is missing on server.");
       return res.status(500).json({
-        error: "Server configuration error: GEMINI_API_KEY is missing. Set it in Vercel → Project → Settings → Environment Variables and redeploy."
+        error: "Server configuration error: OpenRouter API key missing. Set OPENROUTER_API_KEY (or VITE_API_KEY) in Vercel → Project → Settings → Environment Variables and redeploy."
       });
     }
 
-    if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(apiKey)) {
-      console.error(
-        `API Key has an unexpected format (length=${apiKey.length}, prefix=${apiKey.slice(0, 4)}). ` +
-        `Google AI Studio keys start with "AIza".`
-      );
-      return res.status(500).json({
-        error: "Server configuration error: GEMINI_API_KEY format is invalid. Generate a key at https://aistudio.google.com/apikey, paste it raw (no quotes, no spaces) into Vercel, and redeploy."
-      });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    
     const userPrompt = language === 'en' ? `
 REQUIRED ANALYSIS FOR THE PROMPT:
 "${consigne}"
@@ -131,55 +158,50 @@ INSTRUCTIONS DE CALCUL :
    - 10-12 : "Vulnérabilité critique"
 `;
 
-    // Utilisation de gemini-3-flash-preview pour éviter les timeouts Vercel (limite de 10s en gratuit)
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT" as any,
-          properties: {
-            reproductibilite: { type: "INTEGER" as any },
-            contextualisation: { type: "INTEGER" as any },
-            tacitite: { type: "INTEGER" as any },
-            multimodalite: { type: "INTEGER" as any },
-            score_total: { type: "INTEGER" as any },
-            statut: { type: "STRING" as any },
-            points_vigilance: {
-              type: "ARRAY" as any,
-              items: { type: "STRING" as any }
-            },
-            recommandations: {
-              type: "ARRAY" as any,
-              items: {
-                type: "OBJECT" as any,
-                properties: {
-                  action: { type: "STRING" as any },
-                  fiche: { type: "STRING" as any }
-                },
-                required: ["action", "fiche"]
-              }
-            },
-            justifications: {
-              type: "OBJECT" as any,
-              properties: {
-                reproductibilite: { type: "STRING" as any },
-                contextualisation: { type: "STRING" as any },
-                tacitite: { type: "STRING" as any },
-                multimodalite: { type: "STRING" as any }
-              }
-            }
-          },
-          required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite", "score_total", "statut", "points_vigilance", "recommandations"]
-        }
-      }
+    const orResponse = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://compagnon-de-route.vercel.app",
+        "X-Title": "Compagnon de route"
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT[language as keyof typeof SYSTEM_PROMPT] || SYSTEM_PROMPT.fr },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      })
     });
 
-    const text = response.text;
+    if (!orResponse.ok) {
+      const errBody = await orResponse.text();
+      console.error(`OpenRouter ${orResponse.status}:`, errBody);
+
+      if (orResponse.status === 401 || orResponse.status === 403) {
+        return res.status(500).json({
+          error: "OpenRouter rejected the API key. Generate a key at https://openrouter.ai/keys, paste it raw (no quotes, no spaces) into Vercel as OPENROUTER_API_KEY, and redeploy."
+        });
+      }
+
+      if (orResponse.status === 402) {
+        return res.status(500).json({
+          error: "OpenRouter credit/quota exhausted for this key. Top up at https://openrouter.ai/credits or switch the key."
+        });
+      }
+
+      return res.status(500).json({
+        error: `OpenRouter error (${orResponse.status}): ${errBody.slice(0, 300)}`
+      });
+    }
+
+    const data: any = await orResponse.json();
+    const text: string | undefined = data?.choices?.[0]?.message?.content;
     if (!text) throw new Error("Le moteur d'IA n'a pas renvoyé de données.");
-    
+
     let result;
     try {
       result = JSON.parse(text.trim());
@@ -191,16 +213,7 @@ INSTRUCTIONS DE CALCUL :
     res.status(200).json(result);
 
   } catch (error: any) {
-    console.error("Erreur Gemini Server:", error);
-    const message: string = error?.message || "";
-    const status: number = typeof error?.status === "number" ? error.status : 500;
-
-    if (status === 400 && /API[_ ]?KEY[_ ]?INVALID|API key not valid/i.test(message)) {
-      return res.status(500).json({
-        error: "Gemini rejected the API key as invalid. Verify GEMINI_API_KEY in Vercel: generate a fresh key at https://aistudio.google.com/apikey, ensure the Generative Language API is enabled for that key's project, and redeploy after saving."
-      });
-    }
-
-    res.status(500).json({ error: message || "Erreur interne du serveur lors de l'analyse." });
+    console.error("Erreur audit:", error);
+    res.status(500).json({ error: error?.message || "Erreur interne du serveur lors de l'analyse." });
   }
 }

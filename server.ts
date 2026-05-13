@@ -1,6 +1,5 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_PROMPT } from "./constants";
 import dotenv from "dotenv";
 
@@ -9,9 +8,68 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+const JSON_FORMAT_INSTRUCTION_FR = `
+
+FORMAT DE SORTIE :
+Tu DOIS répondre exclusivement avec un objet JSON valide (sans texte autour, sans bloc markdown) avec EXACTEMENT cette structure :
+{
+  "reproductibilite": <entier 0-3>,
+  "contextualisation": <entier 0-3>,
+  "tacitite": <entier 0-3>,
+  "multimodalite": <entier 0-3>,
+  "score_total": <entier 0-12, somme exacte des 4 notes>,
+  "statut": <chaîne>,
+  "points_vigilance": [<chaînes>],
+  "recommandations": [{"action": <chaîne>, "fiche": <clé exacte de fiche>}],
+  "justifications": {
+    "reproductibilite": <chaîne>,
+    "contextualisation": <chaîne>,
+    "tacitite": <chaîne>,
+    "multimodalite": <chaîne>
+  }
+}
+`;
+
+const SYSTEM_PROMPT_EN = `You are the pedagogical expert "Journey Companion", specialized in auditing assessments against generative AI.
+Your mission is to analyze the robustness of an assessment prompt based on Rochane Kherbouche's doctrine (2026).
+
+ANALYSIS DOCTRINE:
+1. Reproducibility: AI's ability to produce an acceptable result from the raw prompt (0=Perfect AI, 3=Incapable AI).
+2. Contextualization: Degree of anchoring in local, personal, or non-online documented data (0=Generic, 3=Ultra-specific).
+3. Tacitness: Presence of metacognitive dimensions or oral justification of choices (0=Pure product, 3=Strong reflexivity).
+4. Multimodality: Diversity of media and synchronous/physical component (0=Asynchronous text, 3=Physical/synchronous presence).
+
+YOUR ANALYSIS MUST:
+- Be rigorous and not hesitate to point out real vulnerabilities.
+- Recommend concrete actions linked to the remediation sheets.
+- The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+- CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
+
+OUTPUT FORMAT:
+You MUST respond ONLY with a valid JSON object (no surrounding text, no markdown fences) following EXACTLY this structure:
+{
+  "reproductibilite": <int 0-3>,
+  "contextualisation": <int 0-3>,
+  "tacitite": <int 0-3>,
+  "multimodalite": <int 0-3>,
+  "score_total": <int 0-12, exact sum of the 4 scores>,
+  "statut": <string>,
+  "points_vigilance": [<strings>],
+  "recommandations": [{"action": <string>, "fiche": <exact sheet key>}],
+  "justifications": {
+    "reproductibilite": <string>,
+    "contextualisation": <string>,
+    "tacitite": <string>,
+    "multimodalite": <string>
+  }
+}
+`;
+
 app.use(express.json());
 
-// API Route for auditing
 app.post("/api/audit", async (req, res) => {
   const { consigne, contextAnswers, language = 'fr' } = req.body;
 
@@ -19,7 +77,10 @@ app.post("/api/audit", async (req, res) => {
     return res.status(400).json({ error: "Missing consigne or contextAnswers" });
   }
 
-  const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY || process.env.API_KEY;
+  const rawApiKey =
+    process.env.OPENROUTER_API_KEY ||
+    process.env.VITE_API_KEY ||
+    process.env.API_KEY;
   const apiKey = rawApiKey
     ? rawApiKey.trim().replace(/^['"]|['"]$/g, "").trim()
     : "";
@@ -27,23 +88,11 @@ app.post("/api/audit", async (req, res) => {
   if (!apiKey) {
     console.error("API Key is missing on server.");
     return res.status(500).json({
-      error: "Server configuration error: GEMINI_API_KEY is missing. Add it to your .env file (see .env.example) and restart the dev server."
-    });
-  }
-
-  if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(apiKey)) {
-    console.error(
-      `API Key has an unexpected format (length=${apiKey.length}, prefix=${apiKey.slice(0, 4)}). ` +
-      `Google AI Studio keys start with "AIza".`
-    );
-    return res.status(500).json({
-      error: "Server configuration error: GEMINI_API_KEY format is invalid. Generate a key at https://aistudio.google.com/apikey and paste it raw (no quotes, no spaces)."
+      error: "Server configuration error: OpenRouter API key missing. Add OPENROUTER_API_KEY to your .env file and restart the dev server."
     });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
     const userPrompt = language === 'en' ? `
 REQUIRED ANALYSIS FOR THE PROMPT:
 "${consigne}"
@@ -82,69 +131,54 @@ INSTRUCTIONS DE CALCUL :
    - 10-12 : "Vulnérabilité critique"
 `;
 
-    // Utilisation de gemini-3-pro-preview comme demandé initialement
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview", 
-      contents: userPrompt,
-      config: {
-        systemInstruction: language === 'en' ? `You are the pedagogical expert "Journey Companion", specialized in auditing assessments against generative AI.
-Your mission is to analyze the robustness of an assessment prompt based on Rochane Kherbouche's doctrine (2026).
+    const systemInstruction = language === 'en'
+      ? SYSTEM_PROMPT_EN
+      : SYSTEM_PROMPT + JSON_FORMAT_INSTRUCTION_FR;
 
-ANALYSIS DOCTRINE:
-1. Reproducibility: AI's ability to produce an acceptable result from the raw prompt (0=Perfect AI, 3=Incapable AI).
-2. Contextualization: Degree of anchoring in local, personal, or non-online documented data (0=Generic, 3=Ultra-specific).
-3. Tacitness: Presence of metacognitive dimensions or oral justification of choices (0=Pure product, 3=Strong reflexivity).
-4. Multimodality: Diversity of media and synchronous/physical component (0=Asynchronous text, 3=Physical/synchronous presence).
-
-YOUR ANALYSIS MUST:
-- Be rigorous and not hesitate to point out real vulnerabilities.
-- Recommend concrete actions linked to the remediation sheets.
-- The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
-- CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
-` : SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT" as any,
-          properties: {
-            reproductibilite: { type: "INTEGER" as any },
-            contextualisation: { type: "INTEGER" as any },
-            tacitite: { type: "INTEGER" as any },
-            multimodalite: { type: "INTEGER" as any },
-            score_total: { type: "INTEGER" as any },
-            statut: { type: "STRING" as any },
-            points_vigilance: {
-              type: "ARRAY" as any,
-              items: { type: "STRING" as any }
-            },
-            recommandations: {
-              type: "ARRAY" as any,
-              items: {
-                type: "OBJECT" as any,
-                properties: {
-                  action: { type: "STRING" as any },
-                  fiche: { type: "STRING" as any }
-                },
-                required: ["action", "fiche"]
-              }
-            },
-            justifications: {
-              type: "OBJECT" as any,
-              properties: {
-                reproductibilite: { type: "STRING" as any },
-                contextualisation: { type: "STRING" as any },
-                tacitite: { type: "STRING" as any },
-                multimodalite: { type: "STRING" as any }
-              }
-            }
-          },
-          required: ["reproductibilite", "contextualisation", "tacitite", "multimodalite", "score_total", "statut", "points_vigilance", "recommandations"]
-        }
-      }
+    const orResponse = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "Compagnon de route"
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      })
     });
 
-    const text = response.text;
+    if (!orResponse.ok) {
+      const errBody = await orResponse.text();
+      console.error(`OpenRouter ${orResponse.status}:`, errBody);
+
+      if (orResponse.status === 401 || orResponse.status === 403) {
+        return res.status(500).json({
+          error: "OpenRouter rejected the API key. Generate a key at https://openrouter.ai/keys and update OPENROUTER_API_KEY."
+        });
+      }
+
+      if (orResponse.status === 402) {
+        return res.status(500).json({
+          error: "OpenRouter credit/quota exhausted for this key. Top up at https://openrouter.ai/credits or switch the key."
+        });
+      }
+
+      return res.status(500).json({
+        error: `OpenRouter error (${orResponse.status}): ${errBody.slice(0, 300)}`
+      });
+    }
+
+    const data: any = await orResponse.json();
+    const text: string | undefined = data?.choices?.[0]?.message?.content;
     if (!text) throw new Error("Le moteur d'IA n'a pas renvoyé de données.");
-    
+
     let result;
     try {
       result = JSON.parse(text.trim());
@@ -156,21 +190,11 @@ YOUR ANALYSIS MUST:
     res.json(result);
 
   } catch (error: any) {
-    console.error("Erreur Gemini Server:", error);
-    const message: string = error?.message || "";
-    const status: number = typeof error?.status === "number" ? error.status : 500;
-
-    if (status === 400 && /API[_ ]?KEY[_ ]?INVALID|API key not valid/i.test(message)) {
-      return res.status(500).json({
-        error: "Gemini rejected the API key as invalid. Generate a fresh key at https://aistudio.google.com/apikey, ensure the Generative Language API is enabled for that key's project, and update GEMINI_API_KEY."
-      });
-    }
-
-    res.status(500).json({ error: message || "Erreur interne du serveur lors de l'analyse." });
+    console.error("Erreur audit:", error);
+    res.status(500).json({ error: error?.message || "Erreur interne du serveur lors de l'analyse." });
   }
 });
 
-// Vite middleware for development
 if (process.env.NODE_ENV !== "production") {
   const vite = await createViteServer({
     server: { middlewareMode: true },
@@ -178,7 +202,6 @@ if (process.env.NODE_ENV !== "production") {
   });
   app.use(vite.middlewares);
 } else {
-  // Serve static files in production (if built)
   app.use(express.static("dist"));
 }
 
