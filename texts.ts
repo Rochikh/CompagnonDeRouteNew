@@ -82,17 +82,6 @@ export const t = {
   radarMulti: "Multimodalité"
 };
 
-export const QUICK_QUESTIONS = [
-  "Cette évaluation repose-t-elle sur une production écrite réalisée hors surveillance ?",
-  "La consigne pourrait-elle être copiée telle quelle dans un assistant IA pour obtenir un résultat recevable ?",
-  "L'évaluation mobilise-t-elle des données génériques accessibles en ligne (plutôt que locales/personnelles) ?",
-  "Le produit final est-il le seul objet évalué, sans trace du processus de production ?",
-  "L'évaluation se déroule-t-elle entièrement en mode asynchrone, sans interaction temps réel ?",
-  "Les critères d'évaluation portant-ils exclusivement sur le contenu (sans dimension réflexive) ?",
-  "Un apprenant pourrait-il obtenir une note satisfaisante sans pouvoir expliquer oralement ses choix ?",
-  "Vos collègues utilisent-ils des consignes identiques ou très similaires d'une session à l'autre ?"
-];
-
 export const LOADING_MESSAGES = [
   "Analyse de la structure sémantique...",
   "Évaluation du potentiel de reproduction par l'IA...",

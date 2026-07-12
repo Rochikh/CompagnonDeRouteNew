@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { SYSTEM_PROMPT } from "./constants";
+import { FICHES } from "./lib/doctrine";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,6 +10,26 @@ const PORT = 3000;
 
 const OPENROUTER_MODEL = "deepseek/deepseek-v4-flash";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+const FICHE_KEYS = Object.keys(FICHES).map(k => `"${k}"`).join(", ");
+
+const SYSTEM_PROMPT = `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
+Ta mission est d'analyser la robustesse d'une consigne d'évaluation en te basant sur la doctrine de Rochane Kherbouche (2026).
+
+DOCTRINE D'ANALYSE (échelle de VULNÉRABILITÉ : 0 = robuste contre l'IA, 3 = vulnérable à l'IA) :
+1. Reproductibilité : Capacité de l'IA à produire un résultat recevable à partir de la consigne brute (0=IA incapable / consigne robuste, 3=IA parfaite / consigne reproductible).
+2. Contextualisation : Degré d'ancrage dans des données locales, personnelles ou non documentées en ligne (0=Ultra-spécifique / robuste, 3=Générique / vulnérable).
+3. Tacitité : Présence de dimensions métacognitives ou de justification orale des choix (0=Réflexivité forte / robuste, 3=Produit pur / vulnérable).
+4. Multimodalité : Diversité des supports et composante synchrone/physique (0=Présence physique ou synchrone / robuste, 3=Texte asynchrone / vulnérable).
+
+RÈGLE D'AGRÉGATION : score_total = somme des 4 dimensions (0 à 12). Plus le total est élevé, plus la consigne est vulnérable à l'IA.
+
+TON ANALYSE DOIT :
+- Utiliser l'écriture inclusive (point médian).
+- Être rigoureuse et ne pas hésiter à pointer les vulnérabilités réelles.
+- Recommander des actions concrètes liées aux fiches de remédiation.
+- Les noms des fiches DOIVENT correspondre exactement à ces clés : ${FICHE_KEYS}.
+`;
 
 const JSON_FORMAT_INSTRUCTION_FR = `
 
@@ -47,7 +67,7 @@ AGGREGATION RULE: score_total = sum of the 4 dimensions (0 to 12). The higher th
 YOUR ANALYSIS MUST:
 - Be rigorous and not hesitate to point out real vulnerabilities.
 - Recommend concrete actions linked to the remediation sheets.
-- The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+- The names of the sheets MUST exactly match these keys: ${FICHE_KEYS}.
 - CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
 
 OUTPUT FORMAT:

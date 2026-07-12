@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStep, AuditResult, VulnerabilityStatus } from './types';
 import { auditConsigne } from './services/gemini';
-import { FICHES } from './constants';
+import { FICHES, QUICK_QUESTIONS } from './lib/doctrine';
 import RadarChart from './components/RadarChart';
-import { t, QUICK_QUESTIONS, LOADING_MESSAGES } from './texts';
+import { t, LOADING_MESSAGES } from './texts';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
@@ -393,7 +393,7 @@ const App: React.FC = () => {
               <h3 className="text-2xl font-black tracking-tight">{t.strategicRecs}</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 {currentResult.recommandations.map((rec, i) => {
-                  const fiche = FICHES['fr'][rec.fiche];
+                  const fiche = FICHES[rec.fiche];
                   return (
                     <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all group">
                       <p className="font-medium text-slate-200 leading-relaxed mb-4">{rec.action}</p>

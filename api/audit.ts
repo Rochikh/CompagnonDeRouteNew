@@ -1,4 +1,7 @@
-// Inline constant to avoid import resolution issues in serverless environment
+import { FICHES } from "../lib/doctrine";
+
+const FICHE_KEYS = Object.keys(FICHES).map(k => `"${k}"`).join(", ");
+
 const SYSTEM_PROMPT = {
   fr: `Tu es l'expert·e en pédagogie "Compagnon de route", spécialisé·e dans l'audit des évaluations face à l'IA générative.
 Ta mission est d'analyser la robustesse d'une consigne d'évaluation en te basant sur la doctrine de Rochane Kherbouche (2026).
@@ -15,7 +18,7 @@ TON ANALYSE DOIT :
 - Utiliser l'écriture inclusive (point médian).
 - Être rigoureuse et ne pas hésiter à pointer les vulnérabilités réelles.
 - Recommander des actions concrètes liées aux fiches de remédiation.
-- Les noms des fiches DOIVENT correspondre exactement à ces clés : "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+- Les noms des fiches DOIVENT correspondre exactement à ces clés : ${FICHE_KEYS}.
 
 FORMAT DE SORTIE :
 Tu DOIS répondre exclusivement avec un objet JSON valide (sans texte autour, sans bloc markdown) avec EXACTEMENT cette structure :
@@ -50,7 +53,7 @@ AGGREGATION RULE: score_total = sum of the 4 dimensions (0 to 12). The higher th
 YOUR ANALYSIS MUST:
 - Be rigorous and not hesitate to point out real vulnerabilities.
 - Recommend concrete actions linked to the remediation sheets.
-- The names of the sheets MUST exactly match these keys: "Fiche 1 — Projet de recherche appliquée", "Fiche 2 — Étude de cas complexe", "Fiche 3 — Production multimodale", "Fiche 4 — Portfolio réflexif avec processus documenté", "Fiche 5 — Soutenance orale sans écrit préalable", "Fiche 6 — Simulation professionnelle filmée", "Fiche 7 — Évaluation par les pairs structurée", "Fiche 8 — Auto-évaluation justifiée".
+- The names of the sheets MUST exactly match these keys: ${FICHE_KEYS}.
 - CRITICAL: You MUST write your entire response (points_vigilance, action descriptions, justifications) in ENGLISH, regardless of the language of the prompt.
 
 OUTPUT FORMAT:
