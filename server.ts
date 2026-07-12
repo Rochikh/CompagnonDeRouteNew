@@ -10,6 +10,10 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// No-op assumé : la limite Upstash (10 req / 10 min / IP) ne s'applique qu'en
+// production, dans api/audit.ts.
+console.warn("Rate limiting inactif en dev : /api/audit est servi sans limite de débit.");
+
 app.post("/api/audit", async (req, res) => {
   const { consigne, contextAnswers } = req.body ?? {};
   if (!consigne || !contextAnswers) {
