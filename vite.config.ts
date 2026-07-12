@@ -8,6 +8,8 @@ export default defineConfig(() => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // Accès dev via le proxy code-server (https://code.rochane.fr/proxy/3000/)
+        allowedHosts: ['code.rochane.fr'],
       },
       plugins: [react(), tailwindcss()],
       resolve: {
