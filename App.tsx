@@ -64,7 +64,7 @@ const App: React.FC = () => {
     startLoadingMessages();
     
     try {
-      const data = await auditConsigne(consigne, contextAnswers, 'fr');
+      const data = await auditConsigne(consigne, contextAnswers);
       
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
