@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppStep, AuditResult, VulnerabilityStatus } from './types';
+import { AppStep, AuditResult } from './types';
 import { auditConsigne } from './services/gemini';
 import { FICHES, QUICK_QUESTIONS } from './lib/doctrine';
 import RadarChart from './components/RadarChart';
@@ -23,7 +23,8 @@ const App: React.FC = () => {
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
     try {
       const saved = localStorage.getItem('compagnon_portfolio');
-      return saved ? JSON.parse(saved) : [];
+      // Écarte les entrées au format v1 (plat), incompatibles avec le contrat v2.
+      return saved ? JSON.parse(saved).filter((x: any) => x?.dimensions) : [];
     } catch { return []; }
   });
 
@@ -71,15 +72,7 @@ const App: React.FC = () => {
         title: consigne.trim().substring(0, 50) + (consigne.length > 50 ? '...' : ''),
         consigne,
         contextAnswers,
-        reproductibilite: data.reproductibilite ?? 0,
-        contextualisation: data.contextualisation ?? 0,
-        tacitite: data.tacitite ?? 0,
-        multimodalite: data.multimodalite ?? 0,
-        score_total: data.score_total ?? 0,
-        statut: (data.statut as VulnerabilityStatus) || VulnerabilityStatus.MODEREE,
-        points_vigilance: data.points_vigilance ?? [],
-        recommandations: data.recommandations ?? [],
-        justifications: data.justifications || {},
+        ...data,
         date: new Date().toLocaleDateString('fr-FR')
       };
 
@@ -101,20 +94,20 @@ const App: React.FC = () => {
     alert(t.copied);
   };
 
+  // Direction robustesse : score haut = robuste = vert.
   const getStatusColor = (status: string) => {
-    const s = (status || "").toLowerCase();
-    if (s.includes('robuste') || s.includes('robust')) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (s.includes('modérée') || s.includes('moderate')) return 'bg-amber-100 text-amber-800 border-amber-200';
-    if (s.includes('élevée') || s.includes('high')) return 'bg-orange-100 text-orange-800 border-orange-200';
-    if (s.includes('critique') || s.includes('critical')) return 'bg-rose-100 text-rose-800 border-rose-200';
+    if (status === 'Risque faible') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    if (status === 'Risque modéré') return 'bg-amber-100 text-amber-800 border-amber-200';
+    if (status === 'Risque élevé') return 'bg-orange-100 text-orange-800 border-orange-200';
+    if (status === 'Risque critique') return 'bg-rose-100 text-rose-800 border-rose-200';
     return 'bg-slate-100 text-slate-800 border-slate-200';
   };
 
   const getProgressColor = (score: number) => {
-    if (score >= 10) return 'bg-rose-500';
-    if (score >= 7) return 'bg-orange-500';
-    if (score >= 4) return 'bg-amber-500';
-    return 'bg-emerald-500';
+    if (score >= 10) return 'bg-emerald-500';
+    if (score >= 7) return 'bg-amber-500';
+    if (score >= 4) return 'bg-orange-500';
+    return 'bg-rose-500';
   };
 
   const getQuickTestResult = () => {
@@ -346,13 +339,13 @@ const App: React.FC = () => {
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
-                <RadarChart 
+                <RadarChart
                   scores={{
-                    reproductibilite: currentResult.reproductibilite,
-                    contextualisation: currentResult.contextualisation,
-                    tacitite: currentResult.tacitite,
-                    multimodalite: currentResult.multimodalite
-                  }} 
+                    reproductibilite: currentResult.dimensions.reproductibilite.note,
+                    contextualisation: currentResult.dimensions.contextualisation.note,
+                    tacitite: currentResult.dimensions.tacitite.note,
+                    multimodalite: currentResult.dimensions.multimodalite.note
+                  }}
                   labels={{
                     repro: t.radarRepro,
                     context: t.radarContext,
@@ -364,11 +357,11 @@ const App: React.FC = () => {
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">
                     <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t.scoreTitle}</h4>
                     <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
+                        <span className="text-6xl font-black text-slate-900">{currentResult.score_robustesse}</span>
                         <span className="text-2xl text-slate-300 font-bold">/12</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                        <div className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_total)}`} style={{ width: `${(currentResult.score_total / 12) * 100}%` }}></div>
+                        <div className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_robustesse)}`} style={{ width: `${(currentResult.score_robustesse / 12) * 100}%` }}></div>
                     </div>
                     <div className={`mt-4 px-4 py-2 rounded-xl text-sm font-bold border inline-block ${getStatusColor(currentResult.statut)}`}>
                         {currentResult.statut}
@@ -429,7 +422,7 @@ const App: React.FC = () => {
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{item.date}</p>
                     </div>
                     <div className="flex items-center gap-6 text-right">
-                      <span className="font-black text-slate-900 text-2xl">{item.score_total}</span>
+                      <span className="font-black text-slate-900 text-2xl">{item.score_robustesse}</span>
                       <span className="text-slate-300 text-xs font-bold ml-0.5">/12</span>
                     </div>
                   </div>

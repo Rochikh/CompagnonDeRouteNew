@@ -1,32 +1,51 @@
+import type { AuditStatut, DimensionKey, Pilotage } from './lib/doctrine';
 
-export enum VulnerabilityStatus {
-  ROBUSTE = "Robuste",
-  MODEREE = "Vulnérabilité modérée",
-  ELEVEE = "Vulnérabilité élevée",
-  CRITIQUE = "Vulnérabilité critique"
+// Contrat API v2 (PLAN §4). Direction robustesse : HAUT = ROBUSTE.
+
+export interface ContextAnswers {
+  synchrone: string;
+  donnees: string;
+  processus: string;
 }
 
-export interface AuditResult {
+export interface AuditInput {
+  consigne: string;
+  contextAnswers: ContextAnswers;
+}
+
+export interface DimensionResult {
+  note: number;
+  justification: string;
+  // Citations exactes de la consigne, présentes uniquement si note === 0.
+  preuves?: string[];
+}
+
+export interface StressTest {
+  minutes_estimees: number;
+  pilotage: Pilotage;
+  verdict: string;
+}
+
+export interface Recommandation {
+  action: string;
+  fiche: string;
+}
+
+export interface AuditReport {
+  dimensions: Record<DimensionKey, DimensionResult>;
+  score_robustesse: number;
+  statut: AuditStatut;
+  stress_test: StressTest;
+  points_vigilance: string[];
+  recommandations: Recommandation[];
+}
+
+// Entrée du portefeuille : rapport + métadonnées client.
+export interface AuditResult extends AuditReport {
   id: string;
   title: string;
   consigne: string;
-  contextAnswers: {
-    synchrone: string;
-    donnees: string;
-    processus: string;
-  };
-  reproductibilite: number;
-  contextualisation: number;
-  tacitite: number;
-  multimodalite: number;
-  score_total: number;
-  statut: VulnerabilityStatus;
-  points_vigilance: string[];
-  recommandations: Array<{
-    action: string;
-    fiche: string;
-  }>;
-  justifications: Record<string, string>;
+  contextAnswers: ContextAnswers;
   date: string;
 }
 

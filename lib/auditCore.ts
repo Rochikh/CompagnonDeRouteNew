@@ -3,30 +3,11 @@
 // api/audit.ts (prod) sont des adaptateurs fins autour de runAudit, sans logique métier.
 
 import { buildSystemPrompt, buildUserPrompt } from './prompt';
-import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore } from './doctrine';
+import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine';
+import { AuditInput, AuditReport, DimensionResult } from '../types';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';
-
-export interface AuditInput {
-  consigne: string;
-  contextAnswers: { synchrone: string; donnees: string; processus: string };
-}
-
-export interface DimensionResult {
-  note: number;
-  justification: string;
-  preuves?: string[];
-}
-
-export interface AuditReport {
-  dimensions: Record<string, DimensionResult>;
-  score_robustesse: number;
-  statut: string;
-  stress_test: { minutes_estimees: number; pilotage: string; verdict: string };
-  points_vigilance: string[];
-  recommandations: { action: string; fiche: string }[];
-}
 
 export class AuditError extends Error {
   constructor(message: string, public status: number) {
@@ -123,7 +104,7 @@ function parseAndValidate(text: string, consigne: string): { report?: AuditRepor
   }
 
   const consigneNorm = normalizeForInclusion(consigne);
-  const dimensions: Record<string, DimensionResult> = {};
+  const dimensions = {} as Record<DimensionKey, DimensionResult>;
   let somme = 0;
 
   for (const dim of DIMENSIONS) {

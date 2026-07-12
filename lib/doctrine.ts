@@ -36,11 +36,16 @@ export const AUDIT_SEUILS = [
   { min: 10, max: 12, statut: 'Risque faible', action: 'Maintien sous vigilance active' }
 ] as const;
 
-export function statutFromScore(score: number) {
+export function statutFromScore(score: number): AuditStatut {
   const seuil = AUDIT_SEUILS.find(s => score >= s.min && score <= s.max);
   if (!seuil) throw new Error(`Score de robustesse hors bornes : ${score}`);
   return seuil.statut;
 }
+
+// Types dérivés des référentiels ci-dessus (source unique, pas de duplication de littéraux).
+export type AuditStatut = (typeof AUDIT_SEUILS)[number]['statut'];
+export type DimensionKey = (typeof DIMENSIONS)[number]['key'];
+export type Pilotage = (typeof PILOTAGE)[number];
 
 // Degrés de pilotage humain du stress-test simulé.
 export const PILOTAGE = ['aucun', 'léger', 'soutenu', 'expert'] as const;
