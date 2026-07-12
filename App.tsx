@@ -1,21 +1,36 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppStep, AuditResult } from './types';
+import { AppStep, AuditResult, ContextAnswers } from './types';
 import { auditConsigne } from './services/gemini';
-import { FICHES, QUICK_QUESTIONS } from './lib/doctrine';
-import RadarChart from './components/RadarChart';
+import { QUICK_QUESTIONS } from './lib/doctrine';
+import Rapport from './components/Rapport';
 import { t, LOADING_MESSAGES } from './texts';
+
+const btnPrimary = "inline-flex min-h-11 items-center justify-center rounded-md bg-bleu-regle px-5 py-2.5 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30";
+const btnSecondary = "inline-flex min-h-11 items-center justify-center rounded-md border border-trait bg-white px-5 py-2.5 font-semibold transition-colors hover:border-bleu-regle hover:text-bleu-regle";
+
+// Les 3 questions de contexte (§7.3), libellés et exemples dans texts.ts.
+const CONTEXT_QUESTIONS: Array<{
+  field: keyof ContextAnswers;
+  title: string;
+  desc: string;
+  options: Array<{ label: string; ex: string }>;
+}> = [
+  { field: 'synchrone', title: t.q1Title, desc: t.q1Desc, options: t.q1Options },
+  { field: 'donnees', title: t.q2Title, desc: t.q2Desc, options: t.q2Options },
+  { field: 'processus', title: t.q3Title, desc: t.q3Desc, options: t.q3Options },
+];
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [consigne, setConsigne] = useState('');
-  const [contextAnswers, setContextAnswers] = useState({
+  const [contextAnswers, setContextAnswers] = useState<ContextAnswers>({
     synchrone: '',
     donnees: '',
     processus: ''
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
-  
+
   // State pour le Quick Test
   const [quickAnswers, setQuickAnswers] = useState<Record<number, number>>({});
 
@@ -63,17 +78,17 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     startLoadingMessages();
-    
+
     try {
       const data = await auditConsigne(consigne, contextAnswers);
-      
+
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
         title: consigne.trim().substring(0, 50) + (consigne.length > 50 ? '...' : ''),
         consigne,
         contextAnswers,
         ...data,
-        date: new Date().toLocaleDateString('fr-FR')
+        date: new Date().toLocaleDateString(t.dateLocale)
       };
 
       setCurrentResult(result);
@@ -94,33 +109,17 @@ const App: React.FC = () => {
     alert(t.copied);
   };
 
-  // Direction robustesse : score haut = robuste = vert.
-  const getStatusColor = (status: string) => {
-    if (status === 'Risque faible') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (status === 'Risque modéré') return 'bg-amber-100 text-amber-800 border-amber-200';
-    if (status === 'Risque élevé') return 'bg-orange-100 text-orange-800 border-orange-200';
-    if (status === 'Risque critique') return 'bg-rose-100 text-rose-800 border-rose-200';
-    return 'bg-slate-100 text-slate-800 border-slate-200';
-  };
-
-  const getProgressColor = (score: number) => {
-    if (score >= 10) return 'bg-emerald-500';
-    if (score >= 7) return 'bg-amber-500';
-    if (score >= 4) return 'bg-orange-500';
-    return 'bg-rose-500';
-  };
-
   const getQuickTestResult = () => {
     const values = Object.values(quickAnswers) as number[];
     const vulnerabilityScore = values.reduce((acc: number, val: number) => acc + val, 0);
     const answered = Object.keys(quickAnswers).length;
-    
+
     if (answered === 0) return { score: 0, status: "", colorClass: "", advice: "", answered: 0 };
 
     // On calcule le score sur 12 proportionnellement aux questions répondues
     const maxPossibleForAnswered = answered * 2;
     const scoreSur12 = Math.round((vulnerabilityScore / maxPossibleForAnswered) * 12);
-    
+
     let status = "";
     let colorClass = "";
     let advice = "";
@@ -142,181 +141,150 @@ const App: React.FC = () => {
       colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
       advice = t.adviceRobuste;
     }
-    
+
     return { score: scoreSur12, status, colorClass, advice, answered };
   };
 
   return (
-    <div className="min-h-screen pb-20 relative">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setStep(AppStep.WELCOME); setError(null); }}>
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-indigo-200 shadow-lg">C</div>
-            <h1 className="font-bold text-slate-800 tracking-tight">{t.appTitle}</h1>
-          </div>
-          <div className="flex items-center gap-4">
+    <div className="relative min-h-screen pb-20">
+      <header className="sticky top-0 z-40 border-b border-trait bg-papier">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
+          <button
+            onClick={() => { setStep(AppStep.WELCOME); setError(null); }}
+            className="flex min-h-11 items-center gap-3"
+          >
+            <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-md bg-bleu-regle font-bold text-white">C</span>
+            <span className="font-semibold tracking-tight">{t.appTitle}</span>
+          </button>
+          <nav className="flex items-center gap-1">
             <button
               onClick={() => setShowAbout(true)}
-              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
               title={t.about}
+              aria-label={t.about}
+              className="flex h-11 w-11 items-center justify-center rounded-md text-encre/60 transition-colors hover:text-bleu-regle"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
-            <button 
+            <button
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
-              className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
+              className={`min-h-11 rounded-md px-3 text-15 font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-bleu-regle' : 'text-encre/80 hover:text-bleu-regle'}`}
             >
               {t.portfolio} ({portfolio.length})
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="mx-auto max-w-4xl px-4 py-8">
         {error && (
-          <div className="mb-6 p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 animate-in fade-in slide-in-from-top-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <h3 className="font-bold">{t.analysisInterrupted}</h3>
-              </div>
-            </div>
-            <p className="text-sm opacity-90 leading-relaxed">{error}</p>
+          <div role="alert" className="mb-6 rounded-md border border-trait border-l-4 border-l-garance bg-white p-5">
+            <h3 className="font-semibold">{t.analysisInterrupted}</h3>
+            <p className="mt-1 font-serif text-15">{error}</p>
           </div>
         )}
 
         {step === AppStep.WELCOME && (
-          <div className="space-y-12 py-12 animate-in fade-in duration-500">
-            <div className="text-center space-y-4">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
-                {t.heroTitle1} <br className="hidden md:block"/>
-                {t.heroTitle2} <br className="hidden md:block"/>
-                <span className="text-indigo-600">{t.heroTitle3}</span>
+          <div className="space-y-12 py-10 md:py-16">
+            <div className="max-w-2xl space-y-4">
+              <h2 className="text-34 font-bold tracking-tight md:text-48">
+                {t.heroTitle1} {t.heroTitle2}<br />
+                <span className="text-bleu-regle">{t.heroTitle3}</span>
               </h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              <p className="max-w-xl font-serif text-18">
                 {t.heroSubtitle}
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <button onClick={() => { setStep(AppStep.AUDIT_INPUT); setError(null); }} className="p-8 bg-white border border-slate-200 rounded-3xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-xl active:scale-[0.99]">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">{t.btnAuditTitle}</h3>
-                <p className="text-slate-500 leading-relaxed">{t.btnAuditDesc}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <button
+                onClick={() => { setStep(AppStep.AUDIT_INPUT); setError(null); }}
+                className="rounded-lg border border-trait bg-white p-6 text-left shadow-sm transition-colors hover:border-bleu-regle"
+              >
+                <h3 className="text-18 font-semibold">{t.btnAuditTitle}</h3>
+                <p className="mt-1.5 font-serif text-15 text-encre/80">{t.btnAuditDesc}</p>
               </button>
-              <button onClick={() => setStep(AppStep.QUICK_TEST)} className="p-8 bg-white border border-slate-200 rounded-3xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-xl active:scale-[0.99]">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">{t.btnQuickTitle}</h3>
-                <p className="text-slate-500 leading-relaxed">{t.btnQuickDesc}</p>
+              <button
+                onClick={() => setStep(AppStep.QUICK_TEST)}
+                className="rounded-lg border border-trait bg-white p-6 text-left shadow-sm transition-colors hover:border-bleu-regle"
+              >
+                <h3 className="text-18 font-semibold">{t.btnQuickTitle}</h3>
+                <p className="mt-1.5 font-serif text-15 text-encre/80">{t.btnQuickDesc}</p>
               </button>
             </div>
           </div>
         )}
 
         {step === AppStep.AUDIT_INPUT && (
-          <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <h2 className="text-2xl font-bold text-slate-900">{t.step1Title}</h2>
-              <textarea 
+          <div className="mx-auto max-w-2xl">
+            <div className="space-y-5 rounded-lg border border-trait bg-white p-6 md:p-8">
+              <h2 className="text-24 font-bold">{t.step1Title}</h2>
+              <textarea
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
                 placeholder={t.step1Placeholder}
-                className="w-full h-56 p-5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-slate-700 leading-relaxed"
+                className="h-56 w-full resize-none rounded-md border border-trait bg-white p-4 font-serif text-15"
               />
-              <button 
-                disabled={!consigne.trim()} 
-                onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} 
-                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 disabled:opacity-30 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+              <button
+                disabled={!consigne.trim()}
+                onClick={() => setStep(AppStep.AUDIT_QUESTIONS)}
+                className={`${btnPrimary} w-full`}
               >
                 {t.btnNextContext}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </button>
             </div>
           </div>
         )}
 
         {step === AppStep.AUDIT_QUESTIONS && (
-          <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-slate-900">{t.step2Title}</h2>
-                <p className="text-sm text-slate-500 leading-relaxed">{t.step2Subtitle}</p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1">
-                  <p className="font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">1</span>
-                    {t.q1Title}
-                  </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t.q1Desc}</p>
-                </div>
-                <div className="grid gap-2">
-                  {t.q1Options.map(o => (
-                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.synchrone === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                      <span className="block text-sm">{o.label}</span>
-                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
-                    </button>
-                  ))}
-                </div>
+          <div className="mx-auto max-w-2xl">
+            <div className="space-y-8 rounded-lg border border-trait bg-white p-6 md:p-8">
+              <div className="space-y-1.5">
+                <h2 className="text-24 font-bold">{t.step2Title}</h2>
+                <p className="text-15 text-encre/70">{t.step2Subtitle}</p>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1">
-                  <p className="font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
-                    {t.q2Title}
-                  </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t.q2Desc}</p>
+              {CONTEXT_QUESTIONS.map((q, qi) => (
+                <div key={q.field} className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="flex items-center gap-2 font-semibold">
+                      <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-kraft text-13 font-bold">{qi + 1}</span>
+                      {q.title}
+                    </p>
+                    <p className="ml-8 text-13 text-encre/70">{q.desc}</p>
+                  </div>
+                  <div className="grid gap-2">
+                    {q.options.map(o => {
+                      const selected = contextAnswers[q.field] === o.label;
+                      return (
+                        <button
+                          key={o.label}
+                          aria-pressed={selected}
+                          onClick={() => setContextAnswers(prev => ({ ...prev, [q.field]: o.label }))}
+                          className={`min-h-11 rounded-md border px-4 py-3 text-left transition-colors ${selected ? 'border-bleu-regle ring-1 ring-bleu-regle' : 'border-trait hover:border-encre/40'}`}
+                        >
+                          <span className={`block text-15 ${selected ? 'font-semibold text-bleu-regle' : 'font-medium'}`}>{o.label}</span>
+                          <span className="block text-13 text-encre/60">{t.examplePrefix} {o.ex}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid gap-2">
-                  {t.q2Options.map(o => (
-                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, donnees: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.donnees === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                      <span className="block text-sm">{o.label}</span>
-                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              ))}
 
-              <div className="space-y-4">
-                <div className="flex flex-col gap-1">
-                  <p className="font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
-                    {t.q3Title}
-                  </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t.q3Desc}</p>
-                </div>
-                <div className="grid gap-2">
-                  {t.q3Options.map(o => (
-                    <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, processus: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.processus === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                      <span className="block text-sm">{o.label}</span>
-                      <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="pt-6 border-t border-slate-100">
-                <button 
-                  disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus} 
-                  onClick={handleAuditSubmit} 
-                  className={`w-full font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-xl ${
-                    loading ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  } disabled:opacity-30`}
+              <div className="border-t border-trait pt-6">
+                <button
+                  disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus}
+                  onClick={handleAuditSubmit}
+                  className="w-full rounded-md bg-bleu-regle py-4 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30"
                 >
                   {loading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex items-center gap-3">
-                        <svg className="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span className="animate-pulse">{loadingStep}</span>
-                      </div>
-                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">{t.loadingWait}</span>
-                    </div>
+                    <span className="flex flex-col items-center gap-1.5">
+                      <span className="flex items-center gap-3">
+                        <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span aria-live="polite">{loadingStep}</span>
+                      </span>
+                      <span className="text-13 font-medium opacity-70">{t.loadingWait}</span>
+                    </span>
                   ) : t.btnLaunchAudit}
                 </button>
               </div>
@@ -325,76 +293,18 @@ const App: React.FC = () => {
         )}
 
         {step === AppStep.AUDIT_RESULT && currentResult && (
-          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t.reportTitle}</h2>
-                <p className="text-slate-500 text-sm">{currentResult.date} — {currentResult.title}</p>
+                <h2 className="text-34 font-bold tracking-tight">{t.reportTitle}</h2>
+                <p className="mt-1 text-13 text-encre/70">{currentResult.date} · {currentResult.title}</p>
               </div>
-              <div className="flex gap-2">
-                <button onClick={copyAsJson} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-all">{t.btnCopyJson}</button>
-                <button onClick={() => setStep(AppStep.WELCOME)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">{t.btnNewAudit}</button>
-              </div>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
-                <RadarChart
-                  notes={{
-                    reproductibilite: currentResult.dimensions.reproductibilite.note,
-                    contextualisation: currentResult.dimensions.contextualisation.note,
-                    tacitite: currentResult.dimensions.tacitite.note,
-                    multimodalite: currentResult.dimensions.multimodalite.note
-                  }}
-                  statut={currentResult.statut}
-                />
-                
-                <div className="mt-8 w-full max-w-xs space-y-3 text-center">
-                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t.scoreTitle}</h4>
-                    <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-6xl font-black text-slate-900">{currentResult.score_robustesse}</span>
-                        <span className="text-2xl text-slate-300 font-bold">/12</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                        <div className={`h-full transition-all duration-1000 ${getProgressColor(currentResult.score_robustesse)}`} style={{ width: `${(currentResult.score_robustesse / 12) * 100}%` }}></div>
-                    </div>
-                    <div className={`mt-4 px-4 py-2 rounded-xl text-sm font-bold border inline-block ${getStatusColor(currentResult.statut)}`}>
-                        {currentResult.statut}
-                    </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                <h3 className="font-bold text-lg text-slate-800 border-b border-slate-50 pb-4">{t.vigilancePoints}</h3>
-                <div className="space-y-3">
-                  {currentResult.points_vigilance.map((v, i) => (
-                    <div key={i} className="flex gap-3 text-sm text-slate-600 leading-relaxed group">
-                      <span className="w-5 h-5 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">!</span>
-                      <p>{v}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex shrink-0 gap-2">
+                <button onClick={copyAsJson} className={btnSecondary}>{t.btnCopyJson}</button>
+                <button onClick={() => setStep(AppStep.WELCOME)} className={btnPrimary}>{t.btnNewAudit}</button>
               </div>
             </div>
-
-            <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl space-y-8">
-              <h3 className="text-2xl font-black tracking-tight">{t.strategicRecs}</h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                {currentResult.recommandations.map((rec, i) => {
-                  const fiche = FICHES[rec.fiche];
-                  return (
-                    <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all group">
-                      <p className="font-medium text-slate-200 leading-relaxed mb-4">{rec.action}</p>
-                      {fiche && (
-                        <div className="flex items-center justify-between mt-auto">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{fiche.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <Rapport result={currentResult} />
           </div>
         )}
 
@@ -477,7 +387,7 @@ const App: React.FC = () => {
                     </p>
                 </div>
             )}
-            
+
             <div className="text-center pt-8">
                <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">{t.quickTestBack}</button>
             </div>
@@ -487,45 +397,56 @@ const App: React.FC = () => {
 
       {/* Modal À propos / Confidentialité */}
       {showAbout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-black text-slate-900">{t.aboutTitle}</h3>
-                <button onClick={() => setShowAbout(false)} className="text-slate-400 hover:text-slate-600">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
-                <p>
-                  <strong>{t.appTitle}</strong> {t.aboutP1}
-                </p>
-                
-                <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
-                  <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04 Pel6.062C3.06 11.029 3.29 12.889 4 14.35c.621 1.257 1.609 2.334 2.814 3.123L12 21l5.186-3.527c1.205-.789 2.193-1.866 2.814-3.123.71-1.461.94-3.321.938-5.288z" /></svg>
-                    {t.aboutPrivacyTitle}
-                  </h4>
-                  <ul className="list-disc ml-4 space-y-1">
-                    <li>{t.aboutPrivacyDesc1}</li>
-                    <li>{t.aboutPrivacyDesc2}</li>
-                    <li>{t.aboutPrivacyDesc3}</li>
-                  </ul>
-                </div>
-
-                <p>
-                  {t.aboutP2}
-                </p>
-              </div>
-
-              <button 
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-encre/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="apropos-titre"
+          onClick={() => setShowAbout(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-lg border border-trait bg-papier p-6 shadow-lg md:p-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <h3 id="apropos-titre" className="text-24 font-bold">{t.aboutTitle}</h3>
+              <button
                 onClick={() => setShowAbout(false)}
-                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all"
+                aria-label={t.aboutBtnClose}
+                className="-m-2 flex h-11 w-11 items-center justify-center rounded-md text-encre/60 hover:text-encre"
               >
-                {t.aboutBtnClose}
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+
+            <div className="mt-4 space-y-4 text-15">
+              <p className="font-serif">
+                <strong className="font-sans font-semibold">{t.appTitle}</strong> {t.aboutP1}
+              </p>
+
+              <div className="space-y-2 rounded-md bg-kraft p-4">
+                <h4 className="flex items-center gap-2 font-semibold">
+                  <svg className="h-4 w-4 shrink-0 text-bleu-regle" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-.727-.061-1.44-.178-2.072z" /></svg>
+                  {t.aboutPrivacyTitle}
+                </h4>
+                <ul className="ml-4 list-disc space-y-1">
+                  <li>{t.aboutPrivacyDesc1}</li>
+                  <li>{t.aboutPrivacyDesc2}</li>
+                  <li>{t.aboutPrivacyDesc3}</li>
+                </ul>
+              </div>
+
+              <p className="font-serif">
+                {t.aboutP2}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowAbout(false)}
+              className={`${btnPrimary} mt-6 w-full`}
+            >
+              {t.aboutBtnClose}
+            </button>
           </div>
         </div>
       )}
