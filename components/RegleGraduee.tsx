@@ -22,6 +22,23 @@ const TICKS = Array.from({ length: MAX * 2 + 1 }, (_, i) => ({
   entier: i % 2 === 0,
 }));
 
+// Mini-règle : version compacte de la signature, pour les listes du portefeuille
+// et la vue avant/après. Mêmes zones, remplissage jusqu'au score, repère encre.
+export const MiniRegle: React.FC<{ score: number; className?: string }> = ({ score, className }) => {
+  const pct = (score / MAX) * 100;
+  return (
+    <div
+      role="img"
+      aria-label={`Robustesse ${score} sur ${MAX} : ${statutFromScore(score)}.`}
+      className={`relative h-2.5 overflow-hidden rounded-xs border border-trait ${className ?? 'w-full'}`}
+    >
+      <div className="absolute inset-0" style={{ background: ZONES_GRADIENT, opacity: 0.22 }} />
+      <div className="absolute inset-0" style={{ background: ZONES_GRADIENT, clipPath: `inset(0 ${100 - pct}% 0 0)` }} />
+      <div className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-encre" style={{ left: `${pct}%` }} aria-hidden />
+    </div>
+  );
+};
+
 interface RegleGradueeProps {
   score: number;
 }

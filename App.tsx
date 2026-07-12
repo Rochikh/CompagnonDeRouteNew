@@ -4,6 +4,9 @@ import { AppStep, AuditResult, ContextAnswers } from './types';
 import { auditConsigne } from './services/gemini';
 import Rapport from './components/Rapport';
 import TestRapide from './components/TestRapide';
+import Matrice from './components/Matrice';
+import { MiniRegle } from './components/RegleGraduee';
+import { STATUT_COLORS } from './components/couleurs';
 import { t, LOADING_MESSAGES } from './texts';
 
 const btnPrimary = "inline-flex min-h-11 items-center justify-center rounded-md bg-bleu-regle px-5 py-2.5 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30";
@@ -20,6 +23,27 @@ const CONTEXT_QUESTIONS: Array<{
   { field: 'donnees', title: t.q2Title, desc: t.q2Desc, options: t.q2Options },
   { field: 'processus', title: t.q3Title, desc: t.q3Desc, options: t.q3Options },
 ];
+
+// Fusion d'un portefeuille importé : les entrées valides dont l'id n'existe pas
+// encore sont ajoutées, les doublons sont ignorés (§7.7). Exportée pour la
+// vérification de l'étape.
+export function fusionnerPortefeuille(
+  existants: AuditResult[],
+  importes: unknown
+): { portefeuille: AuditResult[]; ajoutes: number; doublons: number } {
+  if (!Array.isArray(importes)) throw new Error('format invalide');
+  const valides = importes.filter(
+    (x): x is AuditResult => !!x && typeof x.id === 'string' && !!x.dimensions && typeof x.statut === 'string'
+  );
+  if (valides.length === 0) throw new Error('format invalide');
+  const ids = new Set(existants.map(p => p.id));
+  const nouveaux = valides.filter(x => !ids.has(x.id));
+  return {
+    portefeuille: [...existants, ...nouveaux],
+    ajoutes: nouveaux.length,
+    doublons: valides.length - nouveaux.length,
+  };
+}
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
@@ -47,6 +71,12 @@ const App: React.FC = () => {
   const loadingIntervalRef = useRef<number | null>(null);
 
   const [showAbout, setShowAbout] = useState(false);
+
+  // Ré-audit en cours : id de l'audit d'origine, attaché au prochain résultat.
+  const [parentReaudit, setParentReaudit] = useState<string | null>(null);
+  // Portefeuille : bascule liste / matrice impact-faisabilité.
+  const [vueMatrice, setVueMatrice] = useState(false);
+  const fichierImportRef = useRef<HTMLInputElement | null>(null);
 
   // Synchronisation locale du portefeuille
   useEffect(() => {
@@ -85,11 +115,13 @@ const App: React.FC = () => {
         consigne,
         contextAnswers,
         ...data,
-        date: new Date().toLocaleDateString(t.dateLocale)
+        date: new Date().toLocaleDateString(t.dateLocale),
+        parentId: parentReaudit ?? undefined
       };
 
       setCurrentResult(result);
       setPortfolio(prev => [result, ...prev]);
+      setParentReaudit(null);
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Audit fail:", err);
@@ -104,6 +136,56 @@ const App: React.FC = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
     alert(t.copied);
+  };
+
+  // Ré-audit (§7.5) : consigne et contexte pré-remplis, filiation mémorisée.
+  const demarrerReaudit = () => {
+    if (!currentResult) return;
+    setConsigne(currentResult.consigne);
+    setContextAnswers(currentResult.contextAnswers);
+    setParentReaudit(currentResult.id);
+    setError(null);
+    setStep(AppStep.AUDIT_INPUT);
+  };
+
+  // Curseurs impact/faisabilité : mise à jour du rapport courant et du portefeuille.
+  const majPriorisation = (champ: 'impact' | 'faisabilite', valeur: number) => {
+    if (!currentResult) return;
+    const maj = { ...currentResult, [champ]: valeur };
+    setCurrentResult(maj);
+    setPortfolio(prev => prev.map(item => (item.id === maj.id ? maj : item)));
+  };
+
+  const ouvrirRapport = (audit: AuditResult) => {
+    setCurrentResult(audit);
+    setStep(AppStep.AUDIT_RESULT);
+  };
+
+  const exporterJson = () => {
+    const blob = new Blob([JSON.stringify(portfolio, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = 'compagnon-de-route-portefeuille.json';
+    lien.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importerJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fichier = e.target.files?.[0];
+    e.target.value = '';
+    if (!fichier) return;
+    const lecteur = new FileReader();
+    lecteur.onload = () => {
+      try {
+        const resultat = fusionnerPortefeuille(portfolio, JSON.parse(String(lecteur.result)));
+        setPortfolio(resultat.portefeuille);
+        alert(`${resultat.ajoutes} ${t.importAjoutes}, ${resultat.doublons} ${t.importDoublons}.`);
+      } catch {
+        alert(t.importInvalide);
+      }
+    };
+    lecteur.readAsText(fichier);
   };
 
   return (
@@ -158,7 +240,7 @@ const App: React.FC = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <button
-                onClick={() => { setStep(AppStep.AUDIT_INPUT); setError(null); }}
+                onClick={() => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }}
                 className="rounded-lg border border-trait bg-white p-6 text-left shadow-sm transition-colors hover:border-bleu-regle"
               >
                 <h3 className="text-18 font-semibold">{t.btnAuditTitle}</h3>
@@ -260,40 +342,92 @@ const App: React.FC = () => {
                 <h2 className="text-34 font-bold tracking-tight">{t.reportTitle}</h2>
                 <p className="mt-1 text-13 text-encre/70">{currentResult.date} · {currentResult.title}</p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button onClick={demarrerReaudit} className={btnSecondary}>{t.btnReaudit}</button>
                 <button onClick={copyAsJson} className={btnSecondary}>{t.btnCopyJson}</button>
                 <button onClick={() => setStep(AppStep.WELCOME)} className={btnPrimary}>{t.btnNewAudit}</button>
               </div>
             </div>
-            <Rapport result={currentResult} />
+            <Rapport
+              result={currentResult}
+              parent={portfolio.find(item => item.id === currentResult.parentId)}
+              onPriorisation={majPriorisation}
+            />
           </div>
         )}
 
         {step === AppStep.PORTFOLIO && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-black text-slate-900">{t.portfolio}</h2>
-            </div>
-            {portfolio.length === 0 ? (
-               <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-                  <p className="font-medium">{t.portfolioEmpty}</p>
-                  <button onClick={() => setStep(AppStep.WELCOME)} className="mt-4 text-indigo-600 font-bold hover:underline">{t.portfolioStart}</button>
-               </div>
-            ) : (
-              <div className="grid gap-4">
-                {portfolio.map(item => (
-                  <div key={item.id} onClick={() => { setCurrentResult(item); setStep(AppStep.AUDIT_RESULT); }} className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-indigo-600 transition-all cursor-pointer flex justify-between items-center group shadow-sm hover:shadow-md">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h4 className="font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{item.title}</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{item.date}</p>
-                    </div>
-                    <div className="flex items-center gap-6 text-right">
-                      <span className="font-black text-slate-900 text-2xl">{item.score_robustesse}</span>
-                      <span className="text-slate-300 text-xs font-bold ml-0.5">/12</span>
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-34 font-bold tracking-tight">{t.portfolio}</h2>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setVueMatrice(v => !v)} className={btnSecondary} disabled={portfolio.length === 0}>
+                  {vueMatrice ? t.btnVueListe : t.btnVueMatrice}
+                </button>
+                <button onClick={exporterJson} className={btnSecondary} disabled={portfolio.length === 0}>{t.btnExportJson}</button>
+                <button onClick={() => fichierImportRef.current?.click()} className={btnSecondary}>{t.btnImportJson}</button>
+                <input
+                  ref={fichierImportRef}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={importerJson}
+                  className="hidden"
+                  aria-hidden
+                  tabIndex={-1}
+                />
               </div>
+            </div>
+
+            {portfolio.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-encre/30 py-20 text-center text-encre/60">
+                <p className="font-medium">{t.portfolioEmpty}</p>
+                <button
+                  onClick={() => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }}
+                  className="mt-3 min-h-11 rounded-md px-3 font-medium text-bleu-regle hover:underline"
+                >
+                  {t.portfolioStart}
+                </button>
+              </div>
+            ) : vueMatrice ? (
+              <Matrice audits={portfolio} onOuvrir={ouvrirRapport} />
+            ) : (
+              <ul className="space-y-3">
+                {portfolio.map(item => {
+                  const parent = item.parentId ? portfolio.find(p => p.id === item.parentId) : undefined;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => ouvrirRapport(item)}
+                        className="w-full rounded-lg border border-trait bg-white p-4 text-left shadow-sm transition-colors hover:border-bleu-regle md:px-5"
+                      >
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                          <div className="min-w-0 flex-1 basis-52">
+                            <p className="truncate font-semibold">{item.title}</p>
+                            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-13 text-encre/60">
+                              {item.date}
+                              {item.parentId && (
+                                <span className="rounded-xs bg-kraft px-1.5 py-0.5 text-[11px] font-semibold text-encre">
+                                  {t.badgeRevision} « {(parent?.title ?? '?').slice(0, 40)} »
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <MiniRegle score={item.score_robustesse} className="w-28 md:w-36" />
+                            <span className="w-12 whitespace-nowrap text-right text-18 font-bold">
+                              {item.score_robustesse}<span className="text-13 font-medium text-encre/60">/12</span>
+                            </span>
+                            <span className="flex w-32 items-center gap-1.5 whitespace-nowrap text-13 font-medium">
+                              <span aria-hidden className="h-2 w-2 shrink-0 rounded-xs" style={{ background: STATUT_COLORS[item.statut] }} />
+                              {item.statut}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         )}

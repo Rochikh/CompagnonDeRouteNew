@@ -4,6 +4,7 @@ import { DIMENSIONS, FICHES } from '../lib/doctrine';
 import type { DimensionKey } from '../lib/doctrine';
 import RegleGraduee from './RegleGraduee';
 import RadarChart from './RadarChart';
+import Comparaison from './Comparaison';
 import { t } from '../texts';
 
 // Retire guillemets et espaces déjà présents aux extrémités d'une preuve pour ne
@@ -14,10 +15,14 @@ const sousTitre = "text-13 font-semibold uppercase tracking-widest text-encre/70
 
 interface RapportProps {
   result: AuditResult;
+  // Audit d'origine si celui-ci est un ré-audit : active la vue avant/après (§7.5).
+  parent?: AuditResult;
+  // Rappelé quand un curseur impact/faisabilité change (§2.5).
+  onPriorisation?: (champ: 'impact' | 'faisabilite', valeur: number) => void;
 }
 
 // Rapport d'audit (§7.4) : chaque champ du contrat §4 est affiché, rien n'est jeté.
-const Rapport: React.FC<RapportProps> = ({ result }) => {
+const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => {
   const notes = Object.fromEntries(
     DIMENSIONS.map(d => [d.key, result.dimensions[d.key].note])
   ) as Record<DimensionKey, number>;
@@ -28,6 +33,9 @@ const Rapport: React.FC<RapportProps> = ({ result }) => {
       <section className="rounded-lg border border-trait bg-white p-6 md:p-8">
         <RegleGraduee score={result.score_robustesse} />
       </section>
+
+      {/* Ré-audit : vue avant/après avec deltas par dimension */}
+      {parent && <Comparaison avant={parent} apres={result} />}
 
       {/* Stress-test simulé */}
       <section className="rounded-lg border border-trait bg-white p-6 md:p-8" aria-labelledby="stress-test-titre">
@@ -151,6 +159,41 @@ const Rapport: React.FC<RapportProps> = ({ result }) => {
           })}
         </div>
       </section>
+
+      {/* Curseurs impact/faisabilité pour la matrice du portefeuille (§2.5) */}
+      {onPriorisation && (
+        <section className="rounded-lg border border-trait bg-white p-6 md:p-8" aria-labelledby="prio-titre">
+          <h3 id="prio-titre" className="text-24 font-bold">{t.prioTitle}</h3>
+          <p className="mt-1 text-13 text-encre/70">{t.prioAide}</p>
+          <div className="mt-4 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+            {([['impact', t.prioImpact], ['faisabilite', t.prioFaisabilite]] as const).map(([champ, libelle]) => (
+              <div key={champ}>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-semibold">{libelle}</span>
+                  <span className="text-13 text-encre/60">
+                    {result[champ] !== undefined ? `${result[champ]}/5` : t.prioNonRenseigne}
+                  </span>
+                </div>
+                <div className="mt-2 flex gap-2" role="group" aria-label={libelle}>
+                  {[1, 2, 3, 4, 5].map(valeur => {
+                    const selected = result[champ] === valeur;
+                    return (
+                      <button
+                        key={valeur}
+                        aria-pressed={selected}
+                        onClick={() => onPriorisation(champ, valeur)}
+                        className={`h-11 flex-1 rounded-md border text-15 transition-colors ${selected ? 'border-bleu-regle font-semibold text-bleu-regle ring-1 ring-bleu-regle' : 'border-trait font-medium hover:border-encre/40'}`}
+                      >
+                        {valeur}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

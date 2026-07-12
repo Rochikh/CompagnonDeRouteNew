@@ -47,6 +47,11 @@ export interface AuditResult extends AuditReport {
   consigne: string;
   contextAnswers: ContextAnswers;
   date: string;
+  // Filiation d'un ré-audit : id de l'audit dont celui-ci est la version corrigée.
+  parentId?: string;
+  // Curseurs 1-5 de la matrice impact-faisabilité (§2.5), renseignés côté client.
+  impact?: number;
+  faisabilite?: number;
 }
 
 export interface Fiche {

@@ -89,6 +89,15 @@ export function quickVerdictFromScore(score: number): (typeof QUICK_SEUILS)[numb
   return seuil;
 }
 
+// Matrice impact-faisabilité (temps 3 du protocole, §2.5) : libellés canoniques
+// des 4 quadrants. Axe vertical = impact, axe horizontal = faisabilité.
+export const MATRICE_QUADRANTS = {
+  prioritaires: 'Transformations prioritaires', // impact fort × faisabilité forte
+  chantiers: 'Chantiers à planifier',           // impact fort × faisabilité faible
+  gains: 'Gains rapides',                       // impact faible × faisabilité forte
+  surveiller: 'À surveiller',                   // impact faible × faisabilité faible
+} as const;
+
 // Les 8 fiches de remédiation. Clés exactes avec tiret cadratin, ne pas les modifier.
 // Le champ vulnerabilite (1/5 = fiche la plus robuste) sert au tri des recommandations.
 export const FICHES: Record<string, Fiche> = {
