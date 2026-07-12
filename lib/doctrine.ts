@@ -46,6 +46,7 @@ export function statutFromScore(score: number): AuditStatut {
 export type AuditStatut = (typeof AUDIT_SEUILS)[number]['statut'];
 export type DimensionKey = (typeof DIMENSIONS)[number]['key'];
 export type Pilotage = (typeof PILOTAGE)[number];
+export type QuickVerdict = (typeof QUICK_SEUILS)[number]['verdict'];
 
 // Degrés de pilotage humain du stress-test simulé.
 export const PILOTAGE = ['aucun', 'léger', 'soutenu', 'expert'] as const;
@@ -81,6 +82,12 @@ export const QUICK_SEUILS = [
     conseil: "Reprenez le protocole complet du livre et lancez l'audit détaillé de cette application pour un diagnostic dimension par dimension."
   }
 ] as const;
+
+export function quickVerdictFromScore(score: number): (typeof QUICK_SEUILS)[number] {
+  const seuil = QUICK_SEUILS.find(s => score >= s.min && score <= s.max);
+  if (!seuil) throw new Error(`Score de vulnérabilité hors bornes : ${score}`);
+  return seuil;
+}
 
 // Les 8 fiches de remédiation. Clés exactes avec tiret cadratin, ne pas les modifier.
 // Le champ vulnerabilite (1/5 = fiche la plus robuste) sert au tri des recommandations.

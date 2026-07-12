@@ -63,14 +63,14 @@ export const t = {
   ficheInconnue: "Cette fiche est absente du référentiel local, contenu indisponible.",
   portfolioEmpty: "Votre portefeuille est vide.",
   portfolioStart: "Analyser une première consigne",
-  quickTestTime: "3 minutes chrono",
-  quickTestIntro: "Répondez aux 8 questions suivantes. Plus votre score sur 12 est élevé, plus votre évaluation est vulnérable face à l'IA.",
+  quickTestPositionnement: "Autodiagnostic déclaratif en 8 questions, sans IA. À distinguer du stress-test du protocole, qui met réellement la consigne à l'épreuve d'une IA : l'audit détaillé le simule pour vous.",
+  quickTestIntro: "Répondez aux 8 questions. Le total est un score de vulnérabilité sur 16 : plus il est élevé, plus l'évaluation est exposée à l'IA générative.",
   quickTestYes: "Oui (+2)",
   quickTestPartial: "Partiellement (+1)",
   quickTestNo: "Non (0)",
-  quickTestScoreEst: "Score de Vulnérabilité (Estimé)",
+  quickTestScoreLabel: "Score de vulnérabilité",
   quickTestAnswered: "répondue(s)",
-  quickTestConfidence: "Indice de confiance",
+  quickTestPending: "Répondez aux 8 questions pour obtenir le verdict.",
   quickTestBack: "Retour à l'accueil",
   aboutTitle: "À propos",
   aboutP1: "est un outil d'aide à la décision pédagogique conçu pour auditer la robustesse des évaluations face aux outils d'IA générative.",
@@ -80,15 +80,7 @@ export const t = {
   aboutPrivacyDesc3: "Anonymat : l'outil ne nécessite aucune création de compte.",
   aboutP2: "Développé par Rochane Kherbouche comme ressource complémentaire à l'ouvrage \"Évaluer en formation à l'ère de l'IA générative\" (2026).",
   aboutBtnClose: "Fermer",
-  copied: "Copié dans le presse-papier.",
-  statusCritique: "Vulnérabilité CRITIQUE",
-  statusElevee: "Vulnérabilité ÉLEVÉE",
-  statusModeree: "Vulnérabilité MODÉRÉE",
-  statusRobuste: "ROBUSTE",
-  adviceCritique: "Reprendre le protocole complet du chapitre. Consigne très exposée.",
-  adviceElevee: "Une refonte substantielle est nécessaire.",
-  adviceModeree: "Consultez les Fiches 1 à 4 pour des adaptations ciblées.",
-  adviceRobuste: "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner."
+  copied: "Copié dans le presse-papier."
 };
 
 export const LOADING_MESSAGES = [

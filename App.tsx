@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStep, AuditResult, ContextAnswers } from './types';
 import { auditConsigne } from './services/gemini';
-import { QUICK_QUESTIONS } from './lib/doctrine';
 import Rapport from './components/Rapport';
+import TestRapide from './components/TestRapide';
 import { t, LOADING_MESSAGES } from './texts';
 
 const btnPrimary = "inline-flex min-h-11 items-center justify-center rounded-md bg-bleu-regle px-5 py-2.5 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30";
@@ -30,9 +30,6 @@ const App: React.FC = () => {
     processus: ''
   });
   const [currentResult, setCurrentResult] = useState<AuditResult | null>(null);
-
-  // State pour le Quick Test
-  const [quickAnswers, setQuickAnswers] = useState<Record<number, number>>({});
 
   // Gestion du Portefeuille
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
@@ -107,42 +104,6 @@ const App: React.FC = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
     alert(t.copied);
-  };
-
-  const getQuickTestResult = () => {
-    const values = Object.values(quickAnswers) as number[];
-    const vulnerabilityScore = values.reduce((acc: number, val: number) => acc + val, 0);
-    const answered = Object.keys(quickAnswers).length;
-
-    if (answered === 0) return { score: 0, status: "", colorClass: "", advice: "", answered: 0 };
-
-    // On calcule le score sur 12 proportionnellement aux questions répondues
-    const maxPossibleForAnswered = answered * 2;
-    const scoreSur12 = Math.round((vulnerabilityScore / maxPossibleForAnswered) * 12);
-
-    let status = "";
-    let colorClass = "";
-    let advice = "";
-
-    if (scoreSur12 >= 10) {
-      status = t.statusCritique;
-      colorClass = "bg-rose-100 text-rose-800 border-rose-200";
-      advice = t.adviceCritique;
-    } else if (scoreSur12 >= 7) {
-      status = t.statusElevee;
-      colorClass = "bg-orange-100 text-orange-800 border-orange-200";
-      advice = t.adviceElevee;
-    } else if (scoreSur12 >= 4) {
-      status = t.statusModeree;
-      colorClass = "bg-amber-100 text-amber-800 border-amber-200";
-      advice = t.adviceModeree;
-    } else {
-      status = t.statusRobuste;
-      colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-      advice = t.adviceRobuste;
-    }
-
-    return { score: scoreSur12, status, colorClass, advice, answered };
   };
 
   return (
@@ -338,60 +299,7 @@ const App: React.FC = () => {
         )}
 
         {step === AppStep.QUICK_TEST && (
-           <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
-              <div className="text-center mb-10">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">{t.quickTestTime}</span>
-                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">{t.btnQuickTitle}</h2>
-                <p className="text-slate-600 max-w-lg mx-auto">{t.quickTestIntro}</p>
-              </div>
-
-              <div className="space-y-6">
-                {QUICK_QUESTIONS.map((q, idx) => (
-                  <div key={idx} className="pb-6 border-b border-slate-100 last:border-0 animate-in fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
-                    <p className="font-medium text-slate-800 mb-3">{q}</p>
-                    <div className="flex gap-2">
-                      {[
-                        { val: 2, label: t.quickTestYes },
-                        { val: 1, label: t.quickTestPartial },
-                        { val: 0, label: t.quickTestNo }
-                      ].map(opt => (
-                        <button key={opt.val} onClick={() => setQuickAnswers(prev => ({...prev, [idx]: opt.val}))} className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === opt.val ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {getQuickTestResult().answered > 0 && (
-                <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-black uppercase tracking-widest opacity-70">{t.quickTestScoreEst}</div>
-                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 {t.quickTestAnswered}</div>
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="flex items-baseline">
-                            <span className="text-5xl font-black">{getQuickTestResult().score}</span>
-                            <span className="text-xl font-bold opacity-50 ml-1">/12</span>
-                        </div>
-                        <div>
-                            <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
-                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">{t.quickTestConfidence}</div>
-                        </div>
-                    </div>
-                    <p className="font-medium text-sm leading-relaxed border-t border-current border-opacity-20 pt-3 opacity-90">
-                        {getQuickTestResult().advice}
-                    </p>
-                </div>
-            )}
-
-            <div className="text-center pt-8">
-               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">{t.quickTestBack}</button>
-            </div>
-          </div>
+          <TestRapide onBack={() => setStep(AppStep.WELCOME)} />
         )}
       </main>
 

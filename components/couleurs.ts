@@ -1,4 +1,4 @@
-import type { AuditStatut } from '../lib/doctrine';
+import type { AuditStatut, QuickVerdict } from '../lib/doctrine';
 
 // Sémantique visuelle §6, direction robustesse : chaque statut porte sa couleur,
 // du risque critique (garance) au risque faible (sapin).
@@ -17,4 +17,11 @@ export const STATUT_TRAITS: Record<AuditStatut, string> = {
   'Risque élevé': 'var(--color-brique)',
   'Risque modéré': 'color-mix(in srgb, var(--color-ocre) 80%, var(--color-encre))',
   'Risque faible': 'var(--color-sapin)',
+};
+
+// Verdicts du test rapide (direction inverse, canonique : haut = vulnérable).
+export const VERDICT_COLORS: Record<QuickVerdict, string> = {
+  'Robustesse élevée': 'var(--color-sapin)',
+  'Vulnérabilité modérée': 'var(--color-ocre)',
+  'Vulnérabilité critique': 'var(--color-garance)',
 };
