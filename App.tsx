@@ -4,10 +4,9 @@ import { AppStep, AuditResult, VulnerabilityStatus } from './types';
 import { auditConsigne } from './services/gemini';
 import { FICHES } from './constants';
 import RadarChart from './components/RadarChart';
-import { t, QUICK_QUESTIONS, LOADING_MESSAGES } from './locales';
+import { t, QUICK_QUESTIONS, LOADING_MESSAGES } from './texts';
 
 const App: React.FC = () => {
-  const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [consigne, setConsigne] = useState('');
   const [contextAnswers, setContextAnswers] = useState({
@@ -43,10 +42,10 @@ const App: React.FC = () => {
 
   const startLoadingMessages = () => {
     let index = 0;
-    setLoadingStep(LOADING_MESSAGES[lang][0]);
+    setLoadingStep(LOADING_MESSAGES[0]);
     loadingIntervalRef.current = window.setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES[lang].length;
-      setLoadingStep(LOADING_MESSAGES[lang][index]);
+      index = (index + 1) % LOADING_MESSAGES.length;
+      setLoadingStep(LOADING_MESSAGES[index]);
     }, 2500);
   };
 
@@ -65,16 +64,7 @@ const App: React.FC = () => {
     startLoadingMessages();
     
     try {
-      // Vérification de la clé API via l'interface AI Studio (uniquement si disponible)
-      if (window.aistudio?.hasSelectedApiKey && window.aistudio?.openSelectKey) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await window.aistudio.openSelectKey();
-        }
-      }
-
-      // L'API Key est gérée directement dans le service gemini / backend
-      const data = await auditConsigne(consigne, contextAnswers, lang);
+      const data = await auditConsigne(consigne, contextAnswers, 'fr');
       
       const result: AuditResult = {
         id: Math.random().toString(36).substr(2, 9),
@@ -98,7 +88,7 @@ const App: React.FC = () => {
       setStep(AppStep.AUDIT_RESULT);
     } catch (err: any) {
       console.error("Audit fail:", err);
-      setError(err.message || t[lang].analysisInterrupted);
+      setError(err.message || t.analysisInterrupted);
     } finally {
       setLoading(false);
       stopLoadingMessages();
@@ -108,7 +98,7 @@ const App: React.FC = () => {
   const copyAsJson = () => {
     if (!currentResult) return;
     navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
-    alert(t[lang].copied);
+    alert(t.copied);
   };
 
   const getStatusColor = (status: string) => {
@@ -143,21 +133,21 @@ const App: React.FC = () => {
     let advice = "";
 
     if (scoreSur12 >= 10) {
-      status = t[lang].statusCritique;
+      status = t.statusCritique;
       colorClass = "bg-rose-100 text-rose-800 border-rose-200";
-      advice = t[lang].adviceCritique;
+      advice = t.adviceCritique;
     } else if (scoreSur12 >= 7) {
-      status = t[lang].statusElevee;
+      status = t.statusElevee;
       colorClass = "bg-orange-100 text-orange-800 border-orange-200";
-      advice = t[lang].adviceElevee;
+      advice = t.adviceElevee;
     } else if (scoreSur12 >= 4) {
-      status = t[lang].statusModeree;
+      status = t.statusModeree;
       colorClass = "bg-amber-100 text-amber-800 border-amber-200";
-      advice = t[lang].adviceModeree;
+      advice = t.adviceModeree;
     } else {
-      status = t[lang].statusRobuste;
+      status = t.statusRobuste;
       colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-      advice = t[lang].adviceRobuste;
+      advice = t.adviceRobuste;
     }
     
     return { score: scoreSur12, status, colorClass, advice, answered };
@@ -169,19 +159,13 @@ const App: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setStep(AppStep.WELCOME); setError(null); }}>
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-indigo-200 shadow-lg">C</div>
-            <h1 className="font-bold text-slate-800 tracking-tight">{t[lang].appTitle}</h1>
+            <h1 className="font-bold text-slate-800 tracking-tight">{t.appTitle}</h1>
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
-              className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-            >
-              {lang === 'fr' ? 'EN' : 'FR'}
-            </button>
-            <button 
               onClick={() => setShowAbout(true)}
               className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
-              title={t[lang].about}
+              title={t.about}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
@@ -189,7 +173,7 @@ const App: React.FC = () => {
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
               className={`text-sm font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}`}
             >
-              {t[lang].portfolio} ({portfolio.length})
+              {t.portfolio} ({portfolio.length})
             </button>
           </div>
         </div>
@@ -201,7 +185,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <h3 className="font-bold">{t[lang].analysisInterrupted}</h3>
+                <h3 className="font-bold">{t.analysisInterrupted}</h3>
               </div>
             </div>
             <p className="text-sm opacity-90 leading-relaxed">{error}</p>
@@ -212,12 +196,12 @@ const App: React.FC = () => {
           <div className="space-y-12 py-12 animate-in fade-in duration-500">
             <div className="text-center space-y-4">
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
-                {t[lang].heroTitle1} <br className="hidden md:block"/>
-                {t[lang].heroTitle2} <br className="hidden md:block"/>
-                <span className="text-indigo-600">{t[lang].heroTitle3}</span>
+                {t.heroTitle1} <br className="hidden md:block"/>
+                {t.heroTitle2} <br className="hidden md:block"/>
+                <span className="text-indigo-600">{t.heroTitle3}</span>
               </h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                {t[lang].heroSubtitle}
+                {t.heroSubtitle}
               </p>
             </div>
 
@@ -226,15 +210,15 @@ const App: React.FC = () => {
                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">{t[lang].btnAuditTitle}</h3>
-                <p className="text-slate-500 leading-relaxed">{t[lang].btnAuditDesc}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{t.btnAuditTitle}</h3>
+                <p className="text-slate-500 leading-relaxed">{t.btnAuditDesc}</p>
               </button>
               <button onClick={() => setStep(AppStep.QUICK_TEST)} className="p-8 bg-white border border-slate-200 rounded-3xl text-left hover:border-indigo-600 transition-all group shadow-sm hover:shadow-xl active:scale-[0.99]">
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">{t[lang].btnQuickTitle}</h3>
-                <p className="text-slate-500 leading-relaxed">{t[lang].btnQuickDesc}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{t.btnQuickTitle}</h3>
+                <p className="text-slate-500 leading-relaxed">{t.btnQuickDesc}</p>
               </button>
             </div>
           </div>
@@ -243,11 +227,11 @@ const App: React.FC = () => {
         {step === AppStep.AUDIT_INPUT && (
           <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <h2 className="text-2xl font-bold text-slate-900">{t[lang].step1Title}</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{t.step1Title}</h2>
               <textarea 
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
-                placeholder={t[lang].step1Placeholder}
+                placeholder={t.step1Placeholder}
                 className="w-full h-56 p-5 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-slate-700 leading-relaxed"
               />
               <button 
@@ -255,7 +239,7 @@ const App: React.FC = () => {
                 onClick={() => setStep(AppStep.AUDIT_QUESTIONS)} 
                 className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 disabled:opacity-30 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
               >
-                {t[lang].btnNextContext}
+                {t.btnNextContext}
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </button>
             </div>
@@ -266,20 +250,20 @@ const App: React.FC = () => {
           <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-slate-900">{t[lang].step2Title}</h2>
-                <p className="text-sm text-slate-500 leading-relaxed">{t[lang].step2Subtitle}</p>
+                <h2 className="text-2xl font-bold text-slate-900">{t.step2Title}</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">{t.step2Subtitle}</p>
               </div>
               
               <div className="space-y-4">
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">1</span>
-                    {t[lang].q1Title}
+                    {t.q1Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q1Desc}</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t.q1Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {t[lang].q1Options.map(o => (
+                  {t.q1Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, synchrone: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.synchrone === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -292,12 +276,12 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">2</span>
-                    {t[lang].q2Title}
+                    {t.q2Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q2Desc}</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t.q2Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {t[lang].q2Options.map(o => (
+                  {t.q2Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, donnees: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.donnees === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -310,12 +294,12 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-1">
                   <p className="font-semibold text-slate-800 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">3</span>
-                    {t[lang].q3Title}
+                    {t.q3Title}
                   </p>
-                  <p className="text-xs text-slate-500 italic ml-8">{t[lang].q3Desc}</p>
+                  <p className="text-xs text-slate-500 italic ml-8">{t.q3Desc}</p>
                 </div>
                 <div className="grid gap-2">
-                  {t[lang].q3Options.map(o => (
+                  {t.q3Options.map(o => (
                     <button key={o.label} onClick={() => setContextAnswers(prev => ({...prev, processus: o.label}))} className={`text-left px-5 py-3 rounded-2xl border transition-all ${contextAnswers.processus === o.label ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-sm' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <span className="block text-sm">{o.label}</span>
                       <span className="block text-[10px] font-normal opacity-60">Exemple : {o.ex}</span>
@@ -338,9 +322,9 @@ const App: React.FC = () => {
                         <svg className="animate-spin h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <span className="animate-pulse">{loadingStep}</span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">{t[lang].loadingWait}</span>
+                      <span className="text-[10px] uppercase tracking-widest opacity-60 font-bold">{t.loadingWait}</span>
                     </div>
-                  ) : t[lang].btnLaunchAudit}
+                  ) : t.btnLaunchAudit}
                 </button>
               </div>
             </div>
@@ -351,12 +335,12 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t[lang].reportTitle}</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t.reportTitle}</h2>
                 <p className="text-slate-500 text-sm">{currentResult.date} — {currentResult.title}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={copyAsJson} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-all">{t[lang].btnCopyJson}</button>
-                <button onClick={() => setStep(AppStep.WELCOME)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">{t[lang].btnNewAudit}</button>
+                <button onClick={copyAsJson} className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-600 hover:text-indigo-600 transition-all">{t.btnCopyJson}</button>
+                <button onClick={() => setStep(AppStep.WELCOME)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">{t.btnNewAudit}</button>
               </div>
             </div>
             
@@ -370,15 +354,15 @@ const App: React.FC = () => {
                     multimodalite: currentResult.multimodalite
                   }} 
                   labels={{
-                    repro: t[lang].radarRepro,
-                    context: t[lang].radarContext,
-                    tacit: t[lang].radarTacit,
-                    multi: t[lang].radarMulti
+                    repro: t.radarRepro,
+                    context: t.radarContext,
+                    tacit: t.radarTacit,
+                    multi: t.radarMulti
                   }}
                 />
                 
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">
-                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t[lang].scoreTitle}</h4>
+                    <h4 className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t.scoreTitle}</h4>
                     <div className="flex items-baseline justify-center gap-1">
                         <span className="text-6xl font-black text-slate-900">{currentResult.score_total}</span>
                         <span className="text-2xl text-slate-300 font-bold">/12</span>
@@ -393,7 +377,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                <h3 className="font-bold text-lg text-slate-800 border-b border-slate-50 pb-4">{t[lang].vigilancePoints}</h3>
+                <h3 className="font-bold text-lg text-slate-800 border-b border-slate-50 pb-4">{t.vigilancePoints}</h3>
                 <div className="space-y-3">
                   {currentResult.points_vigilance.map((v, i) => (
                     <div key={i} className="flex gap-3 text-sm text-slate-600 leading-relaxed group">
@@ -406,10 +390,10 @@ const App: React.FC = () => {
             </div>
 
             <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl space-y-8">
-              <h3 className="text-2xl font-black tracking-tight">{t[lang].strategicRecs}</h3>
+              <h3 className="text-2xl font-black tracking-tight">{t.strategicRecs}</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 {currentResult.recommandations.map((rec, i) => {
-                  const fiche = FICHES[lang][rec.fiche];
+                  const fiche = FICHES['fr'][rec.fiche];
                   return (
                     <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all group">
                       <p className="font-medium text-slate-200 leading-relaxed mb-4">{rec.action}</p>
@@ -429,12 +413,12 @@ const App: React.FC = () => {
         {step === AppStep.PORTFOLIO && (
           <div className="space-y-8 animate-in fade-in duration-300">
              <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-black text-slate-900">{t[lang].portfolio}</h2>
+              <h2 className="text-3xl font-black text-slate-900">{t.portfolio}</h2>
             </div>
             {portfolio.length === 0 ? (
                <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-                  <p className="font-medium">{t[lang].portfolioEmpty}</p>
-                  <button onClick={() => setStep(AppStep.WELCOME)} className="mt-4 text-indigo-600 font-bold hover:underline">{t[lang].portfolioStart}</button>
+                  <p className="font-medium">{t.portfolioEmpty}</p>
+                  <button onClick={() => setStep(AppStep.WELCOME)} className="mt-4 text-indigo-600 font-bold hover:underline">{t.portfolioStart}</button>
                </div>
             ) : (
               <div className="grid gap-4">
@@ -459,20 +443,20 @@ const App: React.FC = () => {
            <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
               <div className="text-center mb-10">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">{t[lang].quickTestTime}</span>
-                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">{t[lang].btnQuickTitle}</h2>
-                <p className="text-slate-600 max-w-lg mx-auto">{t[lang].quickTestIntro}</p>
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wide">{t.quickTestTime}</span>
+                <h2 className="text-3xl font-black text-slate-900 mt-4 mb-2">{t.btnQuickTitle}</h2>
+                <p className="text-slate-600 max-w-lg mx-auto">{t.quickTestIntro}</p>
               </div>
 
               <div className="space-y-6">
-                {QUICK_QUESTIONS[lang].map((q, idx) => (
+                {QUICK_QUESTIONS.map((q, idx) => (
                   <div key={idx} className="pb-6 border-b border-slate-100 last:border-0 animate-in fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
                     <p className="font-medium text-slate-800 mb-3">{q}</p>
                     <div className="flex gap-2">
                       {[
-                        { val: 2, label: t[lang].quickTestYes },
-                        { val: 1, label: t[lang].quickTestPartial },
-                        { val: 0, label: t[lang].quickTestNo }
+                        { val: 2, label: t.quickTestYes },
+                        { val: 1, label: t.quickTestPartial },
+                        { val: 0, label: t.quickTestNo }
                       ].map(opt => (
                         <button key={opt.val} onClick={() => setQuickAnswers(prev => ({...prev, [idx]: opt.val}))} className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${quickAnswers[idx] === opt.val ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'}`}>
                           {opt.label}
@@ -487,8 +471,8 @@ const App: React.FC = () => {
             {getQuickTestResult().answered > 0 && (
                 <div className={`sticky bottom-6 mx-auto max-w-xl p-6 rounded-2xl shadow-2xl border-2 backdrop-blur-md animate-in slide-in-from-bottom-10 ${getQuickTestResult().colorClass}`}>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-black uppercase tracking-widest opacity-70">{t[lang].quickTestScoreEst}</div>
-                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 {t[lang].quickTestAnswered}</div>
+                        <div className="text-xs font-black uppercase tracking-widest opacity-70">{t.quickTestScoreEst}</div>
+                        <div className="text-xs font-bold opacity-60">{getQuickTestResult().answered}/8 {t.quickTestAnswered}</div>
                     </div>
                     <div className="flex items-center gap-4 mb-4">
                         <div className="flex items-baseline">
@@ -497,7 +481,7 @@ const App: React.FC = () => {
                         </div>
                         <div>
                             <div className="font-bold text-lg leading-tight">{getQuickTestResult().status}</div>
-                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">{t[lang].quickTestConfidence}</div>
+                            <div className="text-xs font-medium opacity-80 uppercase tracking-wider">{t.quickTestConfidence}</div>
                         </div>
                     </div>
                     <p className="font-medium text-sm leading-relaxed border-t border-current border-opacity-20 pt-3 opacity-90">
@@ -507,7 +491,7 @@ const App: React.FC = () => {
             )}
             
             <div className="text-center pt-8">
-               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">{t[lang].quickTestBack}</button>
+               <button onClick={() => { setStep(AppStep.WELCOME); setQuickAnswers({}); }} className="text-indigo-600 font-bold hover:underline">{t.quickTestBack}</button>
             </div>
           </div>
         )}
@@ -519,7 +503,7 @@ const App: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-black text-slate-900">{t[lang].aboutTitle}</h3>
+                <h3 className="text-2xl font-black text-slate-900">{t.aboutTitle}</h3>
                 <button onClick={() => setShowAbout(false)} className="text-slate-400 hover:text-slate-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -527,23 +511,23 @@ const App: React.FC = () => {
               
               <div className="space-y-4 text-slate-600 text-sm leading-relaxed">
                 <p>
-                  <strong>{t[lang].appTitle}</strong> {t[lang].aboutP1}
+                  <strong>{t.appTitle}</strong> {t.aboutP1}
                 </p>
                 
                 <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
                   <h4 className="font-bold text-slate-800 flex items-center gap-2">
                     <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04 Pel6.062C3.06 11.029 3.29 12.889 4 14.35c.621 1.257 1.609 2.334 2.814 3.123L12 21l5.186-3.527c1.205-.789 2.193-1.866 2.814-3.123.71-1.461.94-3.321.938-5.288z" /></svg>
-                    {t[lang].aboutPrivacyTitle}
+                    {t.aboutPrivacyTitle}
                   </h4>
                   <ul className="list-disc ml-4 space-y-1">
-                    <li>{t[lang].aboutPrivacyDesc1}</li>
-                    <li>{t[lang].aboutPrivacyDesc2}</li>
-                    <li>{t[lang].aboutPrivacyDesc3}</li>
+                    <li>{t.aboutPrivacyDesc1}</li>
+                    <li>{t.aboutPrivacyDesc2}</li>
+                    <li>{t.aboutPrivacyDesc3}</li>
                   </ul>
                 </div>
 
                 <p>
-                  {t[lang].aboutP2}
+                  {t.aboutP2}
                 </p>
               </div>
 
@@ -551,7 +535,7 @@ const App: React.FC = () => {
                 onClick={() => setShowAbout(false)}
                 className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all"
               >
-                {t[lang].aboutBtnClose}
+                {t.aboutBtnClose}
               </button>
             </div>
           </div>

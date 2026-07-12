@@ -109,10 +109,7 @@ export default async function handler(req: any, res: any) {
 
     // Sanitize: trim whitespace/newlines and strip wrapping quotes that often
     // sneak in when keys are pasted into Vercel env settings.
-    const rawApiKey =
-      process.env.OPENROUTER_API_KEY ||
-      process.env.VITE_API_KEY ||
-      process.env.API_KEY;
+    const rawApiKey = process.env.OPENROUTER_API_KEY;
     const apiKey = rawApiKey
       ? rawApiKey.trim().replace(/^['"]|['"]$/g, "").trim()
       : "";
@@ -120,7 +117,7 @@ export default async function handler(req: any, res: any) {
     if (!apiKey) {
       console.error("API Key is missing on server.");
       return res.status(500).json({
-        error: "Server configuration error: OpenRouter API key missing. Set OPENROUTER_API_KEY (or VITE_API_KEY) in Vercel → Project → Settings → Environment Variables and redeploy."
+        error: "Server configuration error: OpenRouter API key missing. Set OPENROUTER_API_KEY in Vercel → Project → Settings → Environment Variables and redeploy."
       });
     }
 

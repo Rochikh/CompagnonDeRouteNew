@@ -79,10 +79,7 @@ app.post("/api/audit", async (req, res) => {
     return res.status(400).json({ error: "Missing consigne or contextAnswers" });
   }
 
-  const rawApiKey =
-    process.env.OPENROUTER_API_KEY ||
-    process.env.VITE_API_KEY ||
-    process.env.API_KEY;
+  const rawApiKey = process.env.OPENROUTER_API_KEY;
   const apiKey = rawApiKey
     ? rawApiKey.trim().replace(/^['"]|['"]$/g, "").trim()
     : "";

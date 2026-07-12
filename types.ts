@@ -50,12 +50,3 @@ export enum AppStep {
   QUICK_TEST,
   PORTFOLIO
 }
-
-declare global {
-  interface Window {
-    aistudio?: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
-  }
-}
