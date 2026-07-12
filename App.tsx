@@ -340,18 +340,13 @@ const App: React.FC = () => {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
                 <RadarChart
-                  scores={{
+                  notes={{
                     reproductibilite: currentResult.dimensions.reproductibilite.note,
                     contextualisation: currentResult.dimensions.contextualisation.note,
                     tacitite: currentResult.dimensions.tacitite.note,
                     multimodalite: currentResult.dimensions.multimodalite.note
                   }}
-                  labels={{
-                    repro: t.radarRepro,
-                    context: t.radarContext,
-                    tacit: t.radarTacit,
-                    multi: t.radarMulti
-                  }}
+                  statut={currentResult.statut}
                 />
                 
                 <div className="mt-8 w-full max-w-xs space-y-3 text-center">

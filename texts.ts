@@ -75,11 +75,7 @@ export const t = {
   adviceCritique: "Reprendre le protocole complet du chapitre. Consigne très exposée.",
   adviceElevee: "Une refonte substantielle est nécessaire.",
   adviceModeree: "Consultez les Fiches 1 à 4 pour des adaptations ciblées.",
-  adviceRobuste: "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner.",
-  radarRepro: "Reproductibilité",
-  radarContext: "Contextualisation",
-  radarTacit: "Tacitité",
-  radarMulti: "Multimodalité"
+  adviceRobuste: "Votre évaluation semble solide. Les Fiches 5 et 6 permettent d'affiner."
 };
 
 export const LOADING_MESSAGES = [

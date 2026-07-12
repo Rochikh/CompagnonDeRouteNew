@@ -1,5 +1,74 @@
 @import "tailwindcss";
 
-body {
-  font-family: 'Bricolage Grotesque Variable', sans-serif;
+@theme {
+  /* Tokens couleur §6 — carnet de route */
+  --color-papier: #F7F5F0;
+  --color-encre: #22303C;
+  --color-bleu-regle: #2C5F7C;
+  --color-sapin: #2E6B4F;
+  --color-ocre: #C58B32;
+  --color-brique: #B0563B;
+  --color-garance: #8C2F2F;
+  --color-kraft: #E8DFCE;
+  /* Bordure standard : encre à 12 % d'opacité */
+  --color-trait: rgb(34 48 60 / 0.12);
+
+  --font-sans: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+
+  /* Échelle typographique §6 : 13 / 15 / 18 / 24 / 34 / 48 */
+  --text-13: 0.8125rem;
+  --text-13--line-height: 1.45;
+  --text-15: 0.9375rem;
+  --text-15--line-height: 1.6;
+  --text-18: 1.125rem;
+  --text-18--line-height: 1.5;
+  --text-24: 1.5rem;
+  --text-24--line-height: 1.3;
+  --text-34: 2.125rem;
+  --text-34--line-height: 1.2;
+  --text-48: 3rem;
+  --text-48--line-height: 1.1;
+}
+
+/* Séquence orchestrée de la règle graduée (§6) : remplissage jusqu'à la valeur,
+   puis le statut s'imprime. L'état de base est l'état final : si les animations
+   sont coupées (prefers-reduced-motion, impression), le résultat reste visible. */
+@keyframes regle-remplir {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes regle-curseur {
+  from {
+    left: 0%;
+  }
+}
+@keyframes regle-imprimer {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-papier);
+    color: var(--color-encre);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-bleu-regle);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }
