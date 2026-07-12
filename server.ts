@@ -14,7 +14,9 @@ app.use(express.json());
 // production, dans api/audit.ts.
 console.warn("Rate limiting inactif en dev : /api/audit est servi sans limite de débit.");
 
-app.post("/api/audit", async (req, res) => {
+// Deux chemins pour la même route : accès direct (localhost:3000) et accès via
+// le proxy code-server /absproxy/3000/, qui conserve le préfixe (cf. vite.config.ts).
+app.post(["/api/audit", "/absproxy/3000/api/audit"], async (req, res) => {
   const { consigne, contextAnswers } = req.body ?? {};
   if (!consigne || !contextAnswers) {
     return res.status(400).json({ error: "Consigne ou contexte manquant dans la requête." });

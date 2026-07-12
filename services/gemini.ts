@@ -16,7 +16,9 @@ function looksLikeAuditReport(data: any): data is AuditReport {
 // Fonction pour auditer une consigne via le backend (pour sécuriser la clé API)
 export async function auditConsigne(consigne: string, contextAnswers: ContextAnswers): Promise<AuditReport> {
   try {
-    const response = await fetch('/api/audit', {
+    // Chemin relatif : résolu contre l'URL de la page, donc /api/audit en prod
+    // (app servie à la racine) et /absproxy/3000/api/audit sous le proxy code-server.
+    const response = await fetch('api/audit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
