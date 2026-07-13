@@ -6,7 +6,7 @@ import { t } from '../texts';
 
 const signe = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '±0');
 const couleurDelta = (n: number) =>
-  n > 0 ? 'var(--color-sapin)' : n < 0 ? 'var(--color-garance)' : 'rgb(34 48 60 / 0.6)';
+  n > 0 ? 'var(--color-sapin)' : n < 0 ? 'var(--color-garance)' : 'rgb(34 48 60 / 0.7)';
 
 interface ComparaisonProps {
   avant: AuditResult;
@@ -45,7 +45,7 @@ const Comparaison: React.FC<ComparaisonProps> = ({ avant, apres }) => {
             <li key={dim.key} className="flex items-center justify-between gap-4 py-2.5 text-15">
               <span className="font-medium">{dim.label}</span>
               <span className="flex items-baseline gap-3 whitespace-nowrap">
-                <span className="text-encre/60">{noteAvant}/3 → {noteApres}/3</span>
+                <span className="text-encre/70">{noteAvant}/3 → {noteApres}/3</span>
                 <strong className="w-9 text-right" style={{ color: couleurDelta(delta) }}>{signe(delta)}</strong>
               </span>
             </li>
@@ -54,7 +54,7 @@ const Comparaison: React.FC<ComparaisonProps> = ({ avant, apres }) => {
         <li className="flex items-center justify-between gap-4 py-2.5 text-15">
           <span className="font-semibold">{t.comparaisonTotal}</span>
           <span className="flex items-baseline gap-3 whitespace-nowrap">
-            <span className="text-encre/60">{avant.score_robustesse}/12 → {apres.score_robustesse}/12</span>
+            <span className="text-encre/70">{avant.score_robustesse}/12 → {apres.score_robustesse}/12</span>
             <strong className="w-9 text-right" style={{ color: couleurDelta(deltaTotal) }}>{signe(deltaTotal)}</strong>
           </span>
         </li>

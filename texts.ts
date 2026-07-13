@@ -8,19 +8,19 @@ export const t = {
   heroTitle1: "Mesurez la robustesse",
   heroTitle2: "de vos évaluations",
   heroTitle3: "à l'ère de l'IA générative",
-  heroSubtitle: "Basé sur le protocole d'audit développé dans \"Évaluer en formation à l'ère de l'IA générative\" (Rochane Kherbouche, 2026).",
+  heroSubtitle: "Basé sur le protocole d'audit développé dans « Évaluer en formation à l'ère de l'IA générative » (Rochane Kherbouche, 2026).",
   btnAuditTitle: "Audit détaillé",
   btnAuditDesc: "Analysez une consigne précise sur 4 dimensions critiques avec l'IA.",
   btnQuickTitle: "Diagnostic rapide",
   btnQuickDesc: "8 questions pour évaluer votre profil de vulnérabilité sans IA.",
   step1Title: "1. Saisie de la consigne",
-  step1Placeholder: "Ex: 'Rédigez un rapport de 5 pages sur l'impact de la RSE...'",
+  step1Placeholder: "Exemple : « Rédigez un rapport de 5 pages sur l'impact de la RSE... »",
   btnNextContext: "Suivant : définir le contexte",
   step2Title: "2. Contexte de passage",
   step2Subtitle: "Précisez les conditions réelles de l'examen pour affiner le diagnostic.",
   examplePrefix: "Exemple :",
   q1Title: "Composante orale ou synchrone ?",
-  q1Desc: "L'apprenant·e doit-il/elle s'exprimer de vive voix ou en direct ?",
+  q1Desc: "L'apprenant·e doit-il·elle s'exprimer de vive voix ou en direct ?",
   q1Options: [
     { label: 'Oui obligatoire', ex: 'Soutenance devant jury, examen oral en classe.' },
     { label: 'Oui optionnelle', ex: 'Participation orale possible mais non notée.' },
@@ -31,7 +31,7 @@ export const t = {
   q2Options: [
     { label: 'Données locales / confidentielles', ex: 'Problématique interne à une PME précise, vécu personnel.' },
     { label: 'Partiellement spécifiques', ex: 'Étude d\'un secteur d\'activité mais sans entreprise précise.' },
-    { label: 'Données génériques', ex: 'Sujet théorique (ex: "Le rôle de l\'IA en RH"), trouvable sur le web.' }
+    { label: 'Données génériques', ex: 'Sujet théorique (« Le rôle de l\'IA en RH »), trouvable sur le web.' }
   ],
   q3Title: "Évaluation du processus ?",
   q3Desc: "Notez-vous uniquement le résultat final ou les étapes de création ?",
@@ -44,6 +44,7 @@ export const t = {
   loadingWait: "L'analyse IA peut prendre jusqu'à 15 secondes",
   reportTitle: "Rapport de robustesse",
   btnCopyJson: "Copier JSON",
+  btnExportPdf: "Exporter en PDF",
   btnNewAudit: "Nouveau diagnostic",
   btnReaudit: "Ré-auditer une version corrigée",
   comparaisonTitle: "Avant / après",
@@ -103,9 +104,9 @@ export const t = {
   aboutPrivacyDesc1: "Pas de base de données : aucune donnée n'est stockée sur nos serveurs.",
   aboutPrivacyDesc2: "Stockage local : votre portefeuille est enregistré uniquement dans votre propre navigateur.",
   aboutPrivacyDesc3: "Anonymat : l'outil ne nécessite aucune création de compte.",
-  aboutP2: "Développé par Rochane Kherbouche comme ressource complémentaire à l'ouvrage \"Évaluer en formation à l'ère de l'IA générative\" (2026).",
+  aboutP2: "Développé par Rochane Kherbouche comme ressource complémentaire à l'ouvrage « Évaluer en formation à l'ère de l'IA générative » (2026).",
   aboutBtnClose: "Fermer",
-  copied: "Copié dans le presse-papier."
+  copied: "Copié dans le presse-papiers."
 };
 
 export const LOADING_MESSAGES = [

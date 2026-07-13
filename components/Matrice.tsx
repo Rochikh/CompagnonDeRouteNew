@@ -34,7 +34,7 @@ const Matrice: React.FC<MatriceProps> = ({ audits, onOuvrir }) => {
 
       <div className="mt-4 flex">
         <div className="flex w-6 shrink-0 items-center justify-center" aria-hidden>
-          <span className="-rotate-90 whitespace-nowrap text-13 font-medium text-encre/60">
+          <span className="-rotate-90 whitespace-nowrap text-13 font-medium text-encre/70">
             {t.matriceAxeImpact} : {t.matriceFaible} → {t.matriceFort}
           </span>
         </div>
@@ -45,10 +45,10 @@ const Matrice: React.FC<MatriceProps> = ({ audits, onOuvrir }) => {
           <div className="absolute inset-x-0 top-1/2 h-px bg-trait" aria-hidden />
 
           {/* Libellés canoniques des 4 quadrants (§2.5) */}
-          <span className="absolute right-2 top-2 max-w-[45%] text-right text-[11px] font-semibold uppercase tracking-wide text-encre/50">{MATRICE_QUADRANTS.prioritaires}</span>
-          <span className="absolute left-2 top-2 max-w-[45%] text-[11px] font-semibold uppercase tracking-wide text-encre/50">{MATRICE_QUADRANTS.chantiers}</span>
-          <span className="absolute bottom-2 right-2 max-w-[45%] text-right text-[11px] font-semibold uppercase tracking-wide text-encre/50">{MATRICE_QUADRANTS.gains}</span>
-          <span className="absolute bottom-2 left-2 max-w-[45%] text-[11px] font-semibold uppercase tracking-wide text-encre/50">{MATRICE_QUADRANTS.surveiller}</span>
+          <span className="absolute right-2 top-2 max-w-[45%] text-right text-[11px] font-semibold uppercase tracking-wide text-encre/70">{MATRICE_QUADRANTS.prioritaires}</span>
+          <span className="absolute left-2 top-2 max-w-[45%] text-[11px] font-semibold uppercase tracking-wide text-encre/70">{MATRICE_QUADRANTS.chantiers}</span>
+          <span className="absolute bottom-2 right-2 max-w-[45%] text-right text-[11px] font-semibold uppercase tracking-wide text-encre/70">{MATRICE_QUADRANTS.gains}</span>
+          <span className="absolute bottom-2 left-2 max-w-[45%] text-[11px] font-semibold uppercase tracking-wide text-encre/70">{MATRICE_QUADRANTS.surveiller}</span>
 
           {points.map(({ audit, rang }) => {
             const saillant = estSaillant(audit);
@@ -71,13 +71,13 @@ const Matrice: React.FC<MatriceProps> = ({ audits, onOuvrir }) => {
           })}
 
           {positionnes.length === 0 && (
-            <p className="absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-15 text-encre/60">
+            <p className="absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-15 text-encre/70">
               {t.matriceVide}
             </p>
           )}
         </div>
       </div>
-      <p className="mt-1 pl-6 text-center text-13 font-medium text-encre/60" aria-hidden>
+      <p className="mt-1 pl-6 text-center text-13 font-medium text-encre/70" aria-hidden>
         {t.matriceAxeFaisabilite} : {t.matriceFaible} → {t.matriceFort}
       </p>
 
@@ -89,7 +89,7 @@ const Matrice: React.FC<MatriceProps> = ({ audits, onOuvrir }) => {
               <li key={audit.id}>
                 <button
                   onClick={() => onOuvrir(audit)}
-                  className={`flex min-h-11 items-center gap-2 rounded-md border border-trait bg-white px-3 py-1.5 text-13 transition-colors hover:border-bleu-regle ${saillant ? '' : 'text-encre/60'}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-md border border-trait bg-white px-3 py-1.5 text-13 transition-colors hover:border-bleu-regle ${saillant ? '' : 'text-encre/70'}`}
                 >
                   <span
                     aria-hidden
@@ -97,7 +97,7 @@ const Matrice: React.FC<MatriceProps> = ({ audits, onOuvrir }) => {
                     style={{ background: saillant ? STATUT_COLORS[audit.statut] : 'rgb(34 48 60 / 0.25)' }}
                   />
                   <span className="max-w-56 truncate font-medium">{audit.title}</span>
-                  <span className="whitespace-nowrap text-[11px] text-encre/50">
+                  <span className="whitespace-nowrap text-[11px] text-encre/70">
                     {t.matriceAxeImpact} {audit.impact} · {t.matriceAxeFaisabilite} {audit.faisabilite}
                   </span>
                 </button>

@@ -61,7 +61,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
                   <div className="flex items-baseline justify-between gap-4">
                     <h4 className="text-18 font-semibold">{dim.label}</h4>
                     <p className="whitespace-nowrap text-18 font-bold">
-                      {d.note}<span className="text-13 font-medium text-encre/60">/3</span>
+                      {d.note}<span className="text-13 font-medium text-encre/70">/3</span>
                     </p>
                   </div>
                   <p className="mt-1.5 font-serif text-15">{d.justification}</p>
@@ -108,7 +108,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
                 <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                   <span className="flex items-center justify-between gap-4 border-b border-trait bg-kraft px-4 py-2.5 md:px-6">
                     <span className="text-13 font-semibold">{rec.fiche}</span>
-                    <span className="flex shrink-0 items-center gap-1.5 text-13 font-medium text-encre/70">
+                    <span className="flex shrink-0 items-center gap-1.5 text-13 font-medium text-encre/70 print:hidden">
                       {t.ficheDeplier}
                       <svg aria-hidden className="h-3.5 w-3.5 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -134,11 +134,11 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
                         ))}
                       </dl>
                       <div>
-                        <h5 className={sousTitre}>{t.fichePrincipe}</h5>
+                        <h4 className={sousTitre}>{t.fichePrincipe}</h4>
                         <p className="mt-0.5 font-serif text-15">{fiche.principe}</p>
                       </div>
                       <div>
-                        <h5 className={sousTitre}>{t.ficheAdaptations}</h5>
+                        <h4 className={sousTitre}>{t.ficheAdaptations}</h4>
                         <ul className="mt-1 space-y-1">
                           {fiche.adaptations.map((a, j) => (
                             <li key={j} className="flex gap-2 font-serif text-15">
@@ -170,11 +170,11 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
               <div key={champ}>
                 <div className="flex items-baseline justify-between">
                   <span className="font-semibold">{libelle}</span>
-                  <span className="text-13 text-encre/60">
+                  <span className="text-13 text-encre/70">
                     {result[champ] !== undefined ? `${result[champ]}/5` : t.prioNonRenseigne}
                   </span>
                 </div>
-                <div className="mt-2 flex gap-2" role="group" aria-label={libelle}>
+                <div className="mt-2 flex gap-2 print:hidden" role="group" aria-label={libelle}>
                   {[1, 2, 3, 4, 5].map(valeur => {
                     const selected = result[champ] === valeur;
                     return (

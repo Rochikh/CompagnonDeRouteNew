@@ -138,6 +138,13 @@ const App: React.FC = () => {
     alert(t.copied);
   };
 
+  // Export PDF : les fiches sont dépliées pour que le rapport s'imprime intégral,
+  // la mise en page A4 vit dans index.css (@page, @media print).
+  const exporterPdf = () => {
+    document.querySelectorAll('details').forEach(d => { d.open = true; });
+    window.print();
+  };
+
   // Ré-audit (§7.5) : consigne et contexte pré-remplis, filiation mémorisée.
   const demarrerReaudit = () => {
     if (!currentResult) return;
@@ -190,7 +197,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative min-h-screen pb-20">
-      <header className="sticky top-0 z-40 border-b border-trait bg-papier">
+      <header className="sticky top-0 z-40 border-b border-trait bg-papier print:hidden">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <button
             onClick={() => { setStep(AppStep.WELCOME); setError(null); }}
@@ -204,7 +211,7 @@ const App: React.FC = () => {
               onClick={() => setShowAbout(true)}
               title={t.about}
               aria-label={t.about}
-              className="flex h-11 w-11 items-center justify-center rounded-md text-encre/60 transition-colors hover:text-bleu-regle"
+              className="flex h-11 w-11 items-center justify-center rounded-md text-encre/70 transition-colors hover:text-bleu-regle"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
@@ -306,7 +313,7 @@ const App: React.FC = () => {
                           className={`min-h-11 rounded-md border px-4 py-3 text-left transition-colors ${selected ? 'border-bleu-regle ring-1 ring-bleu-regle' : 'border-trait hover:border-encre/40'}`}
                         >
                           <span className={`block text-15 ${selected ? 'font-semibold text-bleu-regle' : 'font-medium'}`}>{o.label}</span>
-                          <span className="block text-13 text-encre/60">{t.examplePrefix} {o.ex}</span>
+                          <span className="block text-13 text-encre/70">{t.examplePrefix} {o.ex}</span>
                         </button>
                       );
                     })}
@@ -342,8 +349,9 @@ const App: React.FC = () => {
                 <h2 className="text-34 font-bold tracking-tight">{t.reportTitle}</h2>
                 <p className="mt-1 text-13 text-encre/70">{currentResult.date} · {currentResult.title}</p>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2 print:hidden">
                 <button onClick={demarrerReaudit} className={btnSecondary}>{t.btnReaudit}</button>
+                <button onClick={exporterPdf} className={btnSecondary}>{t.btnExportPdf}</button>
                 <button onClick={copyAsJson} className={btnSecondary}>{t.btnCopyJson}</button>
                 <button onClick={() => setStep(AppStep.WELCOME)} className={btnPrimary}>{t.btnNewAudit}</button>
               </div>
@@ -379,7 +387,7 @@ const App: React.FC = () => {
             </div>
 
             {portfolio.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-encre/30 py-20 text-center text-encre/60">
+              <div className="rounded-lg border border-dashed border-encre/30 py-20 text-center text-encre/70">
                 <p className="font-medium">{t.portfolioEmpty}</p>
                 <button
                   onClick={() => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }}
@@ -403,7 +411,7 @@ const App: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                           <div className="min-w-0 flex-1 basis-52">
                             <p className="truncate font-semibold">{item.title}</p>
-                            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-13 text-encre/60">
+                            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-13 text-encre/70">
                               {item.date}
                               {item.parentId && (
                                 <span className="rounded-xs bg-kraft px-1.5 py-0.5 text-[11px] font-semibold text-encre">
@@ -415,7 +423,7 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <MiniRegle score={item.score_robustesse} className="w-28 md:w-36" />
                             <span className="w-12 whitespace-nowrap text-right text-18 font-bold">
-                              {item.score_robustesse}<span className="text-13 font-medium text-encre/60">/12</span>
+                              {item.score_robustesse}<span className="text-13 font-medium text-encre/70">/12</span>
                             </span>
                             <span className="flex w-32 items-center gap-1.5 whitespace-nowrap text-13 font-medium">
                               <span aria-hidden className="h-2 w-2 shrink-0 rounded-xs" style={{ background: STATUT_COLORS[item.statut] }} />
@@ -455,7 +463,7 @@ const App: React.FC = () => {
               <button
                 onClick={() => setShowAbout(false)}
                 aria-label={t.aboutBtnClose}
-                className="-m-2 flex h-11 w-11 items-center justify-center rounded-md text-encre/60 hover:text-encre"
+                className="-m-2 flex h-11 w-11 items-center justify-center rounded-md text-encre/70 hover:text-encre"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>

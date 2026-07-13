@@ -69,7 +69,7 @@ const TestRapide: React.FC<TestRapideProps> = ({ onBack, initialAnswers }) => {
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <p className="text-34 font-bold">
-              {score}<span className="text-18 font-medium text-encre/60">/16</span>
+              {score}<span className="text-18 font-medium text-encre/70">/16</span>
             </p>
             {seuil ? (
               <p className="flex items-center gap-2 text-18 font-semibold">

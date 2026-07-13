@@ -51,6 +51,38 @@
   }
 }
 
+/* Impression A4 du rapport : fond blanc, couleurs des zones et pastilles
+   conservées, pas de coupure au milieu d'un bloc court. L'état de base étant
+   l'état final des animations, le rapport s'imprime complet. */
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  body {
+    background-color: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Fige chaque élément dans son état final : sans cela, une impression lancée
+     pendant la séquence animée de la règle graduée sortirait tronquée. */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  article,
+  details,
+  blockquote,
+  li {
+    break-inside: avoid;
+  }
+}
+
 @layer base {
   body {
     background-color: var(--color-papier);
