@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/audit.ts": { "maxDuration": 30 }
+    "api/audit.ts": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },

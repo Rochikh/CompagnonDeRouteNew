@@ -38,10 +38,13 @@ ${dims}
 SCORE. score_robustesse = somme exacte des 4 notes (0 à 12).
 Statuts : ${seuilsBlock()}.
 
-STRESS-TEST SIMULÉ. Estime le temps (en minutes) qu'il faudrait à une IA générative grand
-public pour produire une réponse recevable à cette consigne, et le degré de pilotage humain
-nécessaire (${PILOTAGE.join(', ')}). Moins de 30 minutes signale une substituabilité
-forte et doit se refléter dans la note de reproductibilité.
+STRESS-TEST SIMULÉ. Estime le temps (en minutes) qu'il faudrait, avec une IA générative grand
+public, pour obtenir un résultat RECEVABLE au niveau attendu par l'évaluateur·rice, pilotage
+humain compris, et le degré de pilotage nécessaire (${PILOTAGE.join(', ')}).
+Cohérence obligatoire avec la note de reproductibilité :
+- moins de 30 minutes signale une substituabilité forte et implique une reproductibilité de 0 ou 1 ;
+- si la consigne résiste à l'IA (reproductibilité 2 ou 3), l'estimation doit le refléter :
+  30 minutes ou plus, et souvent un pilotage soutenu ou expert.
 
 PREUVES. Pour toute dimension notée 0, cite entre guillemets un ou deux extraits EXACTS de la
 consigne qui fondent la note. Ne cite rien pour les notes 1 à 3.

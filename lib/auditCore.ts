@@ -9,6 +9,13 @@ import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';
 
+// Délai maximal d'un appel OpenRouter : deux tentatives doivent tenir dans la
+// fenêtre maxDuration de 60 s de la fonction Vercel (vercel.json).
+const CALL_TIMEOUT_MS = 25_000;
+
+// Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
+class CallTimeout extends Error {}
+
 export class AuditError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -27,7 +34,15 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
 
   let lastProblem = '';
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const text = await callOpenRouter(apiKey, input);
+    let text: string;
+    try {
+      text = await callOpenRouter(apiKey, input);
+    } catch (e) {
+      if (!(e instanceof CallTimeout)) throw e;
+      lastProblem = `pas de réponse d'OpenRouter en ${CALL_TIMEOUT_MS / 1000} s`;
+      console.warn(`Appel OpenRouter expiré (tentative ${attempt}/2)`);
+      continue;
+    }
     const { report, problem } = parseAndValidate(text, input.consigne);
     if (report) return report;
     lastProblem = problem ?? 'réponse illisible';
@@ -35,54 +50,67 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   }
 
   throw new AuditError(
-    `Le moteur d'IA a renvoyé deux réponses non conformes au contrat d'audit (${lastProblem}). Relancez l'audit ; si le problème persiste, reformulez la consigne.`,
+    `Le moteur d'IA n'a pas fourni de réponse conforme au contrat d'audit en deux tentatives (${lastProblem}). Relancez l'audit ; si le problème persiste, reformulez la consigne.`,
     502
   );
 }
 
 async function callOpenRouter(apiKey: string, input: AuditInput): Promise<string> {
-  const response = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://ia-cr.rochane.fr',
-      'X-Title': 'Compagnon de route'
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [
-        { role: 'system', content: buildSystemPrompt() },
-        { role: 'user', content: buildUserPrompt(input.consigne, input.contextAnswers) }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3
-    })
-  });
+  // Le timer couvre l'appel COMPLET, lecture du corps incluse : OpenRouter peut
+  // envoyer les en-têtes tôt et le corps en fin de génération.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  try {
+    const response = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ia-cr.rochane.fr',
+        'X-Title': 'Compagnon de route'
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: 'system', content: buildSystemPrompt() },
+          { role: 'user', content: buildUserPrompt(input.consigne, input.contextAnswers) }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3
+      })
+    });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    console.error(`OpenRouter ${response.status}:`, errBody.slice(0, 500));
-    if (response.status === 401 || response.status === 403) {
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(`OpenRouter ${response.status}:`, errBody.slice(0, 500));
+      if (response.status === 401 || response.status === 403) {
+        throw new AuditError(
+          'OpenRouter a refusé la clé API. Générez une clé sur https://openrouter.ai/keys et mettez à jour OPENROUTER_API_KEY.',
+          500
+        );
+      }
+      if (response.status === 402) {
+        throw new AuditError(
+          'Le crédit OpenRouter de cette clé est épuisé. Rechargez sur https://openrouter.ai/credits ou changez de clé.',
+          500
+        );
+      }
       throw new AuditError(
-        'OpenRouter a refusé la clé API. Générez une clé sur https://openrouter.ai/keys et mettez à jour OPENROUTER_API_KEY.',
-        500
+        `Le service d'analyse est indisponible (OpenRouter ${response.status}). Réessayez dans quelques instants.`,
+        502
       );
     }
-    if (response.status === 402) {
-      throw new AuditError(
-        'Le crédit OpenRouter de cette clé est épuisé. Rechargez sur https://openrouter.ai/credits ou changez de clé.',
-        500
-      );
-    }
-    throw new AuditError(
-      `Le service d'analyse est indisponible (OpenRouter ${response.status}). Réessayez dans quelques instants.`,
-      502
-    );
+
+    const data: any = await response.json();
+    return data?.choices?.[0]?.message?.content ?? '';
+  } catch (e) {
+    if (e instanceof AuditError) throw e;
+    if (controller.signal.aborted) throw new CallTimeout();
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const data: any = await response.json();
-  return data?.choices?.[0]?.message?.content ?? '';
 }
 
 function normalizeForInclusion(s: string): string {
