@@ -2,7 +2,7 @@
 // Rochane Kherbouche, 2026, chapitre 6). Toute définition, seuil, statut, fiche ou question
 // vit ici et nulle part ailleurs.
 
-import { Fiche } from '../types';
+import { Fiche } from '../types.js';
 
 // Les 4 dimensions de substituabilité. Chaque dimension est notée 0 à 3, 3 = pôle ROBUSTE.
 export const DIMENSIONS = [

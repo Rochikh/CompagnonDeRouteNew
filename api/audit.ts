@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { runAudit, AuditError } from "../lib/auditCore";
+import { runAudit, AuditError } from "../lib/auditCore.js";
 
 export const config = {
   runtime: 'nodejs',

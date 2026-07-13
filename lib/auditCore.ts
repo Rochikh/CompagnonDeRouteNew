@@ -2,9 +2,9 @@
 // stricte du contrat, retry unique sur réponse invalide. server.ts (dev) et
 // api/audit.ts (prod) sont des adaptateurs fins autour de runAudit, sans logique métier.
 
-import { buildSystemPrompt, buildUserPrompt } from './prompt';
-import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine';
-import { AuditInput, AuditReport, DimensionResult } from '../types';
+import { buildSystemPrompt, buildUserPrompt } from './prompt.js';
+import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine.js';
+import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';

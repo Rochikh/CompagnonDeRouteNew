@@ -2,7 +2,7 @@
 // lib/doctrine.ts. Direction robustesse : 3 = pôle robuste. Aucun texte de prompt
 // ne doit exister ailleurs que dans ce module.
 
-import { DIMENSIONS, AUDIT_SEUILS, PILOTAGE, FICHES } from './doctrine';
+import { DIMENSIONS, AUDIT_SEUILS, PILOTAGE, FICHES } from './doctrine.js';
 
 function seuilsBlock(): string {
   return AUDIT_SEUILS.map(s => `${s.min}-${s.max} : ${s.statut} (${s.action.toLowerCase()})`).join(' ; ');
