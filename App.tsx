@@ -360,6 +360,7 @@ const App: React.FC = () => {
               result={currentResult}
               parent={portfolio.find(item => item.id === currentResult.parentId)}
               onPriorisation={majPriorisation}
+              onVoirMatrice={() => { setVueMatrice(true); setStep(AppStep.PORTFOLIO); }}
             />
           </div>
         )}

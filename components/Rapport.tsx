@@ -19,10 +19,12 @@ interface RapportProps {
   parent?: AuditResult;
   // Rappelé quand un curseur impact/faisabilité change (§2.5).
   onPriorisation?: (champ: 'impact' | 'faisabilite', valeur: number) => void;
+  // Ouvre le portefeuille en vue matrice, proposé quand les deux curseurs sont renseignés.
+  onVoirMatrice?: () => void;
 }
 
 // Rapport d'audit (§7.4) : chaque champ du contrat §4 est affiché, rien n'est jeté.
-const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => {
+const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoirMatrice }) => {
   const notes = Object.fromEntries(
     DIMENSIONS.map(d => [d.key, result.dimensions[d.key].note])
   ) as Record<DimensionKey, number>;
@@ -182,7 +184,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
                         key={valeur}
                         aria-pressed={selected}
                         onClick={() => onPriorisation(champ, valeur)}
-                        className={`h-11 flex-1 rounded-md border text-15 transition-colors ${selected ? 'border-bleu-regle font-semibold text-bleu-regle ring-1 ring-bleu-regle' : 'border-trait font-medium hover:border-encre/40'}`}
+                        className={`h-11 flex-1 rounded-md border text-15 transition-colors ${selected ? 'border-bleu-regle bg-bleu-regle font-semibold text-white' : 'border-trait font-medium hover:border-encre/40'}`}
                       >
                         {valeur}
                       </button>
@@ -192,6 +194,14 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation }) => 
               </div>
             ))}
           </div>
+          {onVoirMatrice && result.impact !== undefined && result.faisabilite !== undefined && (
+            <button
+              onClick={onVoirMatrice}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md border border-trait bg-white px-5 py-2.5 font-semibold transition-colors hover:border-bleu-regle hover:text-bleu-regle print:hidden"
+            >
+              {t.prioVoirMatrice}
+            </button>
+          )}
         </section>
       )}
     </div>
