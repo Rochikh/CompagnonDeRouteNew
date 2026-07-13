@@ -9,9 +9,11 @@ import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';
 
-// Délai maximal d'un appel OpenRouter : deux tentatives doivent tenir dans la
-// fenêtre maxDuration de 60 s de la fonction Vercel (vercel.json).
-const CALL_TIMEOUT_MS = 25_000;
+// Délais maximaux par appel OpenRouter, asymétriques : la première tentative
+// absorbe les générations lentes (latence mesurée 14-49 s), le retry se contente
+// du reliquat. Total 58 s, sous la fenêtre maxDuration de 60 s (vercel.json).
+const FIRST_CALL_TIMEOUT_MS = 40_000;
+const RETRY_CALL_TIMEOUT_MS = 18_000;
 
 // Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
 class CallTimeout extends Error {}
@@ -34,12 +36,13 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
 
   let lastProblem = '';
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : RETRY_CALL_TIMEOUT_MS;
     let text: string;
     try {
-      text = await callOpenRouter(apiKey, input);
+      text = await callOpenRouter(apiKey, input, timeoutMs);
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
-      lastProblem = `pas de réponse d'OpenRouter en ${CALL_TIMEOUT_MS / 1000} s`;
+      lastProblem = `pas de réponse d'OpenRouter en ${timeoutMs / 1000} s`;
       console.warn(`Appel OpenRouter expiré (tentative ${attempt}/2)`);
       continue;
     }
@@ -55,11 +58,11 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   );
 }
 
-async function callOpenRouter(apiKey: string, input: AuditInput): Promise<string> {
+async function callOpenRouter(apiKey: string, input: AuditInput, timeoutMs: number): Promise<string> {
   // Le timer couvre l'appel COMPLET, lecture du corps incluse : OpenRouter peut
   // envoyer les en-têtes tôt et le corps en fin de génération.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
