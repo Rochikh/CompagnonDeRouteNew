@@ -10,10 +10,11 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';
 
 // Délais maximaux par appel OpenRouter, asymétriques : la première tentative
-// absorbe les générations lentes (latence mesurée 14-49 s), le retry se contente
-// du reliquat. Total 58 s, sous la fenêtre maxDuration de 60 s (vercel.json).
-const FIRST_CALL_TIMEOUT_MS = 40_000;
-const RETRY_CALL_TIMEOUT_MS = 18_000;
+// absorbe les générations lentes (les consignes longues dépassent la minute),
+// le retry se contente du reliquat. Total 180 s, large marge sous la fenêtre
+// maxDuration de 300 s (vercel.json, Fluid Compute actif).
+const FIRST_CALL_TIMEOUT_MS = 100_000;
+const RETRY_CALL_TIMEOUT_MS = 80_000;
 
 // Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
 class CallTimeout extends Error {}

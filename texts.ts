@@ -41,7 +41,7 @@ export const t = {
     { label: 'Seul le produit final', ex: 'Seul le rapport final est rendu et noté.' }
   ],
   btnLaunchAudit: "Lancer l'audit de robustesse",
-  loadingWait: "L'analyse IA peut prendre jusqu'à 15 secondes",
+  loadingWait: "L'analyse prend de 30 secondes à 2 minutes selon la longueur de la consigne",
   reportTitle: "Rapport de robustesse",
   btnCopyJson: "Copier JSON",
   btnExportPdf: "Exporter en PDF",
@@ -119,5 +119,5 @@ export const LOADING_MESSAGES = [
   "Génération des recommandations stratégiques...",
   "Finalisation du diagnostic de robustesse...",
   "L'IA affine ses conseils pédagogiques...",
-  "Encore quelques secondes, le rapport arrive."
+  "Analyse toujours en cours, le rapport arrive."
 ];
