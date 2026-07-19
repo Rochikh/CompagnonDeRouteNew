@@ -1,7 +1,6 @@
 # CLAUDE.md — Compagnon de route (v2)
 
 Règles de conduite pour Claude Code sur ce repo. À lire avec PLAN.md (spec exécutable). En cas de conflit, PLAN.md décrit QUOI construire, ce fichier décrit COMMENT travailler.
-
 ## Environnement d'exécution
 
 Claude Code CLI, modèle Claude Fable 5, fixé au niveau du projet dans `.claude/settings.json` (`{"model": "fable"}`), pas seulement rappelé ici. Requiert Claude Code v2.1.170 ou plus (`claude update` sinon). Terminal d'origine indifférent (natif, VS Code, code-server) : Claude Code CLI lit `.claude/settings.json` et CLAUDE.md de façon identique quel que soit l'émulateur de terminal. Vérifier `/status` en début de session pour confirmer que Fable est bien actif ; un `--model` ou `ANTHROPIC_MODEL` positionné dans l'environnement prendrait le pas sur le réglage du projet.
@@ -29,7 +28,7 @@ Toute la doctrine vit dans `lib/doctrine.ts` : définitions des 4 dimensions, se
 ## Anti-régression (erreurs déjà payées, ne pas les reproduire)
 
 Héritées du hub PEDA-IA (apps précédentes) :
-1. Jamais de clé API côté client ni dans le code. Clé serveur uniquement, `OPENROUTER_API_KEY` (supprimer les fallbacks `VITE_API_KEY`/`API_KEY`).
+1. Jamais de clé API côté client ni dans le code. Clé serveur uniquement, `DEEPSEEK_API_KEY` (supprimer les fallbacks `VITE_API_KEY`/`API_KEY`). L'app appelle l'API DeepSeek en direct (`api.deepseek.com`, modèle `deepseek-v4-flash`) ; OpenRouter a été abandonné, l'ancienne clé est révoquée.
 2. Sortie LLM structurée imposée au niveau API (`response_format: json_object`) + validation serveur avant renvoi. Jamais de parsing de texte libre.
 3. Prompt système = couche métier : interdictions explicites (aucune mention de styles d'apprentissage, mythe débunké ; max une référence théorique par sortie), obligations de forme (concret, actionnable, mesurable).
 4. CI/CD : permissions explicites, pas de config implicite.
