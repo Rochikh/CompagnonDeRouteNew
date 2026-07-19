@@ -1,4 +1,4 @@
-// Cœur partagé de l'audit (PLAN §3-§4) : appel OpenRouter, parsing, validation
+// Cœur partagé de l'audit (PLAN §3-§4) : appel DeepSeek, parsing, validation
 // stricte du contrat, retry unique sur réponse invalide. server.ts (dev) et
 // api/audit.ts (prod) sont des adaptateurs fins autour de runAudit, sans logique métier.
 
@@ -6,10 +6,10 @@ import { buildSystemPrompt, buildUserPrompt } from './prompt.js';
 import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine.js';
 import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash';
+const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 
-// Délais maximaux par appel OpenRouter, asymétriques : la première tentative
+// Délais maximaux par appel DeepSeek, asymétriques : la première tentative
 // absorbe les générations lentes (les consignes longues dépassent la minute),
 // le retry se contente du reliquat. Total 180 s, large marge sous la fenêtre
 // maxDuration de 300 s (vercel.json, Fluid Compute actif).
@@ -26,11 +26,11 @@ export class AuditError extends Error {
 }
 
 export async function runAudit(input: AuditInput): Promise<AuditReport> {
-  const rawApiKey = process.env.OPENROUTER_API_KEY;
+  const rawApiKey = process.env.DEEPSEEK_API_KEY;
   const apiKey = rawApiKey ? rawApiKey.trim().replace(/^['"]|['"]$/g, '').trim() : '';
   if (!apiKey) {
     throw new AuditError(
-      "Configuration serveur incomplète : la variable OPENROUTER_API_KEY est absente. Ajoutez-la à l'environnement du serveur puis relancez.",
+      "Configuration serveur incomplète : la variable DEEPSEEK_API_KEY est absente. Ajoutez-la à l'environnement du serveur puis relancez.",
       500
     );
   }
@@ -40,11 +40,11 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
     const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : RETRY_CALL_TIMEOUT_MS;
     let text: string;
     try {
-      text = await callOpenRouter(apiKey, input, timeoutMs);
+      text = await callDeepSeek(apiKey, input, timeoutMs);
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
-      lastProblem = `pas de réponse d'OpenRouter en ${timeoutMs / 1000} s`;
-      console.warn(`Appel OpenRouter expiré (tentative ${attempt}/2)`);
+      lastProblem = `pas de réponse de DeepSeek en ${timeoutMs / 1000} s`;
+      console.warn(`Appel DeepSeek expiré (tentative ${attempt}/2)`);
       continue;
     }
     const { report, problem } = parseAndValidate(text, input.consigne);
@@ -59,23 +59,21 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   );
 }
 
-async function callOpenRouter(apiKey: string, input: AuditInput, timeoutMs: number): Promise<string> {
-  // Le timer couvre l'appel COMPLET, lecture du corps incluse : OpenRouter peut
+async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number): Promise<string> {
+  // Le timer couvre l'appel COMPLET, lecture du corps incluse : DeepSeek peut
   // envoyer les en-têtes tôt et le corps en fin de génération.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(DEEPSEEK_URL, {
       method: 'POST',
       signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://ia-cr.rochane.fr',
-        'X-Title': 'Compagnon de route'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: DEEPSEEK_MODEL,
         messages: [
           { role: 'system', content: buildSystemPrompt() },
           { role: 'user', content: buildUserPrompt(input.consigne, input.contextAnswers) }
@@ -87,21 +85,21 @@ async function callOpenRouter(apiKey: string, input: AuditInput, timeoutMs: numb
 
     if (!response.ok) {
       const errBody = await response.text();
-      console.error(`OpenRouter ${response.status}:`, errBody.slice(0, 500));
+      console.error(`DeepSeek ${response.status}:`, errBody.slice(0, 500));
       if (response.status === 401 || response.status === 403) {
         throw new AuditError(
-          'OpenRouter a refusé la clé API. Générez une clé sur https://openrouter.ai/keys et mettez à jour OPENROUTER_API_KEY.',
+          'DeepSeek a refusé la clé API. Générez une clé sur https://platform.deepseek.com/api_keys et mettez à jour DEEPSEEK_API_KEY.',
           500
         );
       }
       if (response.status === 402) {
         throw new AuditError(
-          'Le crédit OpenRouter de cette clé est épuisé. Rechargez sur https://openrouter.ai/credits ou changez de clé.',
+          'Le crédit DeepSeek de cette clé est épuisé. Rechargez sur https://platform.deepseek.com ou changez de clé.',
           500
         );
       }
       throw new AuditError(
-        `Le service d'analyse est indisponible (OpenRouter ${response.status}). Réessayez dans quelques instants.`,
+        `Le service d'analyse est indisponible (DeepSeek ${response.status}). Réessayez dans quelques instants.`,
         502
       );
     }
