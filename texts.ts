@@ -2,6 +2,9 @@ export const t = {
   appTitle: "Compagnon de route",
   portfolio: "Portefeuille",
   about: "À propos",
+  footerBy: "Développé par",
+  footerAuthor: "Rochane Kherbouche",
+  footerAuthorUrl: "https://rochane.fr",
   // Défaut 13 : locale d'affichage des dates centralisée ici, pas en dur dans les composants.
   dateLocale: "fr-FR",
   analysisInterrupted: "Analyse interrompue",

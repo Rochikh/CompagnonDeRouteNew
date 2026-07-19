@@ -446,6 +446,20 @@ const App: React.FC = () => {
         )}
       </main>
 
+      <footer className="border-t border-trait print:hidden">
+        <div className="mx-auto max-w-4xl px-4 py-6 text-13 text-encre/70">
+          {t.footerBy}{' '}
+          <a
+            href={t.footerAuthorUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-encre underline decoration-trait underline-offset-2 transition-colors hover:text-bleu-regle"
+          >
+            {t.footerAuthor}
+          </a>
+        </div>
+      </footer>
+
       {/* Modal À propos / Confidentialité */}
       {showAbout && (
         <div
