@@ -6,13 +6,14 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = 3000;
 app.use(express.json());
 
-// Limite de débit : 10 requêtes par IP par 10 minutes (même règle qu'Upstash avant).
+// Limite de débit : 60 requêtes par IP par 10 minutes (salle de formation derrière une même IP publique).
 const auditLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 10,
+  limit: 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requêtes. Réessayez dans quelques minutes." },
