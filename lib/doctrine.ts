@@ -31,8 +31,8 @@ export const DIMENSIONS = [
     niveaux: [
       "0 : tout le matériau est public et générique.",
       "1 : le sujet est générique, l'apprenant·e le rattache à un contexte réel librement choisi et documenté en ligne (entreprise connue, cas médiatisé).",
-      "2 : la réponse exige des données locales non publiées (observations sur place, relevés, documents internes courants), accessibles à toute personne présente dans l'organisation.",
-      "3 : la réponse mobilise des données confidentielles ou personnelles, réservées à l'organisme ou à la personne."
+      "2 : la réponse exige des données locales non publiées (observations sur place, relevés, documents internes courants), accessibles à toute personne présente dans le lieu. Une donnée observable par toute personne présente, ou anonymisée (initiales, pseudonymes), relève de ce niveau même si elle porte sur des personnes.",
+      "3 : la réponse mobilise des données dont l'accès est restreint au-delà de la présence sur place : soumises à une obligation de confidentialité, dossiers nominatifs, informations personnelles identifiantes. La présence sur le lieu ne suffit pas à y accéder."
     ],
     exemple0: "une étude de cas fictive utilisant des données publiques",
     exemple3: "une analyse mobilisant les données RH confidentielles de l'organisme"
