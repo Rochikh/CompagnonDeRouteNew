@@ -4,27 +4,66 @@
 
 import { Fiche } from '../types.js';
 
-// Les 4 dimensions de substituabilité. Chaque dimension est notée 0 à 3, 3 = pôle ROBUSTE.
+// Les 4 dimensions de substituabilité (livre, chapitre 6). Chaque dimension est
+// notée 0 à 3, 3 = pôle ROBUSTE. Les noms et les exemples des pôles sont ceux du
+// livre. Les niveaux 1 et 2 sont une extension de l'outil. Pour la reproductibilité,
+// le nom désigne le pôle 0 : la note haute marque son absence.
 export const DIMENSIONS = [
   {
     key: 'reproductibilite',
     label: 'Reproductibilité',
-    definition: "L'évaluation demande-t-elle une procédure standardisée (0, substituable) ou une production unique (3, robuste) ?"
+    question: "La production attendue peut-elle être la même d'un·e apprenant·e à l'autre et d'une session à l'autre ?",
+    direction: "La note haute marque une production unique. Une évaluation très reproductible reçoit une note basse : 0 = procédure standardisée, production interchangeable ; 3 = production unique, non transposable.",
+    niveaux: [
+      "0 : un même rendu convient à tout·e apprenant·e et vaut d'une session à l'autre.",
+      "1 : le contenu attendu est standard, seule la forme ou un choix de surface varie (un exemple, une illustration).",
+      "2 : la consigne impose que chaque production soit différente (objet, cas ou angle propre à chaque apprenant·e), mais la démarche et les conclusions restent transposables d'une production à l'autre.",
+      "3 : la production est unique : sa démarche et ses conclusions valent pour un·e seul·e apprenant·e. Un plan imposé laisse la production unique tant que son contenu reste propre à chaque apprenant·e."
+    ],
+    exemple0: "un QCM sur les règles de sécurité incendie",
+    exemple3: "une analyse de risques contextualisée à un bâtiment spécifique"
   },
   {
     key: 'contextualisation',
     label: 'Contextualisation',
-    definition: "Ancrage dans des données génériques accessibles en ligne (0) ou locales, spécifiques à une organisation, confidentielles, personnelles (3) ?"
+    question: "Les données nécessaires pour répondre sont-elles génériques et accessibles en ligne, ou locales, propres à une organisation ou à une personne ?",
+    direction: "Plus les données sont locales et éloignées du domaine public, plus la note est haute : 0 = données génériques publiques ; 3 = données confidentielles ou personnelles.",
+    niveaux: [
+      "0 : tout le matériau est public et générique.",
+      "1 : le sujet est générique, l'apprenant·e le rattache à un contexte réel librement choisi et documenté en ligne (entreprise connue, cas médiatisé).",
+      "2 : la réponse exige des données locales non publiées (observations sur place, relevés, documents internes courants), accessibles à toute personne présente dans l'organisation.",
+      "3 : la réponse mobilise des données confidentielles ou personnelles, réservées à l'organisme ou à la personne."
+    ],
+    exemple0: "une étude de cas fictive utilisant des données publiques",
+    exemple3: "une analyse mobilisant les données RH confidentielles de l'organisme"
   },
   {
     key: 'tacitite',
     label: 'Tacitité',
-    definition: "L'expertise requise est-elle explicitable, facilement formalisable comme une synthèse textuelle (0), ou intuitive, fondée sur l'expérience, le ressenti, l'interaction en temps réel (3) ?"
+    question: "L'expertise évaluée peut-elle être mise en mots et restituée en synthèse, ou relève-t-elle de l'expérience, du ressenti, de la réaction en temps réel ?",
+    direction: "Plus l'expertise est tacite, plus la note est haute : 0 = savoir explicitable et formalisable ; 3 = savoir incorporé, mobilisé en situation.",
+    niveaux: [
+      "0 : restituer un savoir formalisé suffit (définitions, méthode, synthèse).",
+      "1 : appliquer une méthode connue à un cas et justifier ses choix ; l'expertise reste entièrement explicitable.",
+      "2 : une part de jugement en situation est évaluée (lecture d'une situation, réaction à l'imprévu), mais elle reste minoritaire ou peut être anticipée.",
+      "3 : l'évaluation porte principalement sur le geste, la relation, l'improvisation ou le ressenti."
+    ],
+    exemple0: "rédiger une synthèse bibliographique",
+    exemple3: "sentir qu'un·e apprenant·e simule sa compréhension lors d'un oral"
   },
   {
     key: 'multimodalite',
     label: 'Multimodalité',
-    definition: "Un seul format, type devoir écrit asynchrone monomodal (0), ou combinaison de formats, par exemple soutenance associant diaporama, démonstration technique et questions improvisées (3) ?"
+    question: "L'évaluation repose-t-elle sur un seul format asynchrone, ou sur une combinaison de formats dont au moins un temps synchrone ?",
+    direction: "Plus les formats sont combinés et synchrones, plus la note est haute : 0 = un seul format écrit asynchrone ; 3 = plusieurs formats articulés dont une interaction en direct.",
+    niveaux: [
+      "0 : un seul livrable écrit rendu à distance.",
+      "1 : un livrable principal complété par un second format asynchrone (vidéo enregistrée, diaporama déposé) ou par un oral entièrement préparable.",
+      "2 : deux formats dont un temps synchrone avec questions improvisées, l'écrit gardant le poids principal.",
+      "3 : plusieurs formats articulés dont une part synchrone décisive."
+    ],
+    exemple0: "un mémoire écrit",
+    exemple3: "une soutenance combinant diaporama, démonstration technique et questions improvisées"
   }
 ] as const;
 

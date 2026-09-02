@@ -9,8 +9,9 @@ function seuilsBlock(): string {
 }
 
 function schemaBlock(): string {
+  // La clé "reproductibilite" nomme le pôle 0 : l'annotation rappelle le sens de la note.
   const dimLines = DIMENSIONS.map(d =>
-    `    "${d.key}": { "note": <entier 0-3>, "justification": <chaîne>, "preuves": [<1 à 2 extraits exacts de la consigne, UNIQUEMENT si note = 0>] }`
+    `    "${d.key}": { "note": <entier 0-3${d.key === 'reproductibilite' ? ', 3 = production unique, donc reproductibilité faible' : ''}>, "justification": <chaîne>, "preuves": [<1 à 2 extraits exacts de la consigne, UNIQUEMENT si note = 0>] }`
   ).join(',\n');
   return `{
   "dimensions": {
@@ -25,7 +26,13 @@ ${dimLines}
 }
 
 export function buildSystemPrompt(): string {
-  const dims = DIMENSIONS.map(d => `- ${d.label} : ${d.definition}`).join('\n');
+  const dims = DIMENSIONS.map(d =>
+`- ${d.label} (note 0 à 3, 3 = pôle robuste). ${d.question}
+  Sens de l'échelle : ${d.direction}
+  ${d.niveaux.join('\n  ')}
+  Exemple noté 0 : ${d.exemple0}
+  Exemple noté 3 : ${d.exemple3}`
+  ).join('\n');
   const ficheKeys = Object.keys(FICHES).map(k => `"${k}"`).join(', ');
 
   return `Tu es "Compagnon de route", expert·e en ingénierie de l'évaluation, spécialisé·e dans l'audit
