@@ -333,3 +333,10 @@ Erreur de direction (v1 : haut = vulnérable, livre : haut = robuste) : défaut 
 ## §10 — Journal hub (à reporter dans PEDA-IA après livraison)
 
 APP à documenter : Compagnon de route v2. Outil : Claude Code (spec produite dans le hub). Objectif pédagogique : auditer la robustesse des évaluations face à l'IA générative selon le protocole du livre (scoring 4 dimensions, stress-test simulé, remédiation par fiches, priorisation impact-faisabilité). Erreurs et résolutions : les 14 + l'inversion doctrinale ci-dessus. Décisions d'architecture : source doctrinale unique construite à l'exécution, validation serveur du contrat LLM avec recalcul des champs dérivés, adaptateurs fins dev/prod autour d'un core partagé, rate limiting Upstash, double lecture robustesse/substituabilité.
+
+---
+
+## §11 — Points ouverts (constatés le 02/09/2026, à traiter dans une tâche dédiée)
+
+1. Frontière souple entre les niveaux 1 et 2 et entre 2 et 3 du barème RCTM, observée sur la tacitité et la reproductibilité. Sur une même consigne (BTS MCO, dossier + soutenance), les modes sans raisonnement citent le descripteur du niveau 2 de la tacitité (« part de jugement en situation, minoritaire, anticipable ») et notent 1 ; le mode avec raisonnement note 2. Même schéma en reproductibilité entre 2 et 3 (clause du plan imposé). Deux lectures défendables du même barème, sans contradiction note/justification. Piste : préciser ce qui départage 1 de 2 (le jugement en situation est-il évalué, oui ou non) et 2 de 3 (les conclusions se transposent-elles).
+2. Défaut d'interface : un collage d'image dans le textarea de la consigne est ignoré par le navigateur, sans aucun retour à l'utilisateur·rice. L'application n'offre aucun canal d'image ; seul le texte part vers le serveur. Une utilisatrice a cru envoyer une capture avec son texte. Piste : intercepter l'événement de collage et afficher un message expliquant que seul le texte est analysé.
