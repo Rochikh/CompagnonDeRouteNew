@@ -2,13 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { rateLimit } from "express-rate-limit";
 import { runAudit, AuditError } from "./lib/auditCore";
+import { transcrireImage } from "./lib/transcriptionCore";
 import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);
 const PORT = 3000;
-app.use(express.json());
 
 // Limite de débit : 60 requêtes par IP par 10 minutes (salle de formation derrière une même IP publique).
 const auditLimiter = rateLimit({
@@ -18,10 +18,21 @@ const auditLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Trop de requêtes. Réessayez dans quelques minutes." },
 });
+// Compteur séparé pour la transcription d'images : une salle qui dépose des
+// captures ne consomme pas le quota d'audit, et inversement.
+const transcriptionLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requêtes. Réessayez dans quelques minutes." },
+});
 
 // Deux chemins pour la même route : accès direct (localhost:3000) et accès via
 // le proxy code-server /absproxy/3000/, qui conserve le préfixe (cf. vite.config.ts).
-app.post(["/api/audit", "/absproxy/3000/api/audit"], auditLimiter, async (req, res) => {
+// Parseur JSON par route : 100 ko suffisent à une consigne, l'image transcrite
+// arrive en data URL et reçoit sa propre limite sur sa route.
+app.post(["/api/audit", "/absproxy/3000/api/audit"], auditLimiter, express.json(), async (req, res) => {
   const { consigne, contextAnswers } = req.body ?? {};
   if (!consigne || !contextAnswers) {
     return res.status(400).json({ error: "Consigne ou contexte manquant dans la requête." });
@@ -32,6 +43,16 @@ app.post(["/api/audit", "/absproxy/3000/api/audit"], auditLimiter, async (req, r
     console.error("Erreur audit:", error);
     const status = error instanceof AuditError ? error.status : 500;
     res.status(status).json({ error: error?.message || "Erreur interne du serveur pendant l'analyse." });
+  }
+});
+
+app.post(["/api/transcription", "/absproxy/3000/api/transcription"], transcriptionLimiter, express.json({ limit: "4mb" }), async (req, res) => {
+  try {
+    res.json({ texte: await transcrireImage(req.body?.image) });
+  } catch (error: any) {
+    console.error("Erreur transcription:", error);
+    const status = error instanceof AuditError ? error.status : 500;
+    res.status(status).json({ error: error?.message || "Erreur interne du serveur pendant la transcription." });
   }
 });
 

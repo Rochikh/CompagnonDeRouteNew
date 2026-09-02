@@ -89,3 +89,11 @@ INSTRUCTIONS DE CALCUL :
 2. score_robustesse = somme exacte des 4 notes (0 à 12).
 3. statut déduit du score selon les seuils : ${seuilsBlock()}.`;
 }
+
+// Transcription d'une image de consigne (lib/transcriptionCore.ts). Le modèle
+// renvoie la sentinelle quand l'image ne porte aucun texte lisible.
+export const TRANSCRIPTION_VIDE = '[AUCUN TEXTE]';
+
+export function buildTranscriptionPrompt(): string {
+  return `Transcris intégralement et fidèlement le texte de cette image, sans rien ajouter, sans commentaire, sans mise en forme markdown. Conserve les paragraphes, les chiffres et la ponctuation tels quels. Si l'image ne contient aucun texte lisible, réponds exactement : ${TRANSCRIPTION_VIDE}`;
+}

@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppStep, AuditResult, ContextAnswers } from './types';
-import { auditConsigne } from './services/gemini';
+import { auditConsigne, transcrireImage } from './services/gemini';
+import { MAX_CONSIGNE_CHARS } from './lib/limites';
 import Rapport from './components/Rapport';
 import TestRapide from './components/TestRapide';
 import Matrice from './components/Matrice';
@@ -68,7 +69,13 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState(t.analysisInterrupted);
   const loadingIntervalRef = useRef<number | null>(null);
+
+  // Transcription d'image : appel en cours, puis bandeau de relecture jusqu'à la sortie de l'écran.
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcrit, setTranscrit] = useState(false);
+  const fichierImageRef = useRef<HTMLInputElement | null>(null);
 
   const [showAbout, setShowAbout] = useState(false);
 
@@ -99,11 +106,34 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => { setTranscrit(false); }, [step]);
+
+  // Ajout du texte transcrit à la suite de la consigne, jamais en écrasement.
+  const ajouterTranscription = async (fichier: File) => {
+    if (transcribing) return;
+    setTranscribing(true);
+    setError(null);
+    try {
+      const texte = (await transcrireImage(fichier)).trim();
+      const base = consigne.trimEnd();
+      const nouveau = base ? `${base}\n\n${texte}` : texte;
+      if (nouveau.length > MAX_CONSIGNE_CHARS) throw new Error(t.transcriptionTropLongue);
+      setConsigne(nouveau);
+      setTranscrit(true);
+    } catch (err: any) {
+      setErrorTitle(t.transcriptionInterrompue);
+      setError(err.message || t.transcriptionEchec);
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
   const handleAuditSubmit = async () => {
     if (loading) return;
 
     setLoading(true);
     setError(null);
+    setErrorTitle(t.analysisInterrupted);
     startLoadingMessages();
 
     try {
@@ -228,7 +258,7 @@ const App: React.FC = () => {
       <main className="mx-auto max-w-4xl px-4 py-8">
         {error && (
           <div role="alert" className="mb-6 rounded-md border border-trait border-l-4 border-l-garance bg-white p-5">
-            <h3 className="font-semibold">{t.analysisInterrupted}</h3>
+            <h3 className="font-semibold">{errorTitle}</h3>
             <p className="mt-1 font-serif text-15">{error}</p>
           </div>
         )}
@@ -271,11 +301,53 @@ const App: React.FC = () => {
               <textarea
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
+                onPaste={(e) => {
+                  const fichier = e.clipboardData.files[0];
+                  if (fichier?.type.startsWith('image/')) { e.preventDefault(); ajouterTranscription(fichier); }
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const fichier = e.dataTransfer.files[0];
+                  if (fichier) ajouterTranscription(fichier);
+                }}
+                disabled={transcribing}
                 placeholder={t.step1Placeholder}
-                className="h-56 w-full resize-none rounded-md border border-trait bg-white p-4 font-serif text-15"
+                className="h-56 w-full resize-none rounded-md border border-trait bg-white p-4 font-serif text-15 disabled:opacity-60"
               />
+              <p className="text-13 text-encre/70">{t.consigneConfidentialite}</p>
+              <div className="space-y-2 rounded-md border border-dashed border-trait p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fichierImageRef.current?.click()}
+                    disabled={transcribing}
+                    className={btnSecondary}
+                  >
+                    {t.btnTranscrireImage}
+                  </button>
+                  <input
+                    ref={fichierImageRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const fichier = e.target.files?.[0];
+                      e.target.value = '';
+                      if (fichier) ajouterTranscription(fichier);
+                    }}
+                    className="hidden"
+                    aria-hidden
+                    tabIndex={-1}
+                  />
+                  <p className="text-13 text-encre/70">{t.imageAide}</p>
+                </div>
+                <p className="text-13 text-encre/70">{t.imageConfidentialite}</p>
+                <p role="status" aria-live="polite" className="text-15 font-medium">
+                  {transcribing ? t.transcriptionEnCours : transcrit ? t.transcriptionFaite : ''}
+                </p>
+              </div>
               <button
-                disabled={!consigne.trim()}
+                disabled={!consigne.trim() || transcribing}
                 onClick={() => setStep(AppStep.AUDIT_QUESTIONS)}
                 className={`${btnPrimary} w-full`}
               >
@@ -498,6 +570,7 @@ const App: React.FC = () => {
                   <li>{t.aboutPrivacyDesc1}</li>
                   <li>{t.aboutPrivacyDesc2}</li>
                   <li>{t.aboutPrivacyDesc3}</li>
+                  <li>{t.aboutPrivacyDesc4}</li>
                 </ul>
               </div>
 

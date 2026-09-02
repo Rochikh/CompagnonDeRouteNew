@@ -6,7 +6,7 @@ import { buildSystemPrompt, buildUserPrompt } from './prompt.js';
 import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine.js';
 import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+export const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 
 // Budget d'un audit : 290 s au total, sous la limite de 300 s retenue pour la
@@ -27,7 +27,8 @@ export class AuditError extends Error {
   }
 }
 
-export async function runAudit(input: AuditInput): Promise<AuditReport> {
+// Clé DeepSeek partagée par l'audit et la transcription (lib/transcriptionCore.ts).
+export function readApiKey(): string {
   const rawApiKey = process.env.DEEPSEEK_API_KEY;
   const apiKey = rawApiKey ? rawApiKey.trim().replace(/^['"]|['"]$/g, '').trim() : '';
   if (!apiKey) {
@@ -36,6 +37,32 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
       500
     );
   }
+  return apiKey;
+}
+
+// Erreur HTTP DeepSeek vers erreur applicative, corps logué côté serveur.
+export function deepSeekHttpError(status: number, errBody: string): AuditError {
+  console.error(`DeepSeek ${status}:`, errBody.slice(0, 500));
+  if (status === 401 || status === 403) {
+    return new AuditError(
+      'DeepSeek a refusé la clé API. Générez une clé sur https://platform.deepseek.com/api_keys et mettez à jour DEEPSEEK_API_KEY.',
+      500
+    );
+  }
+  if (status === 402) {
+    return new AuditError(
+      'Le crédit DeepSeek de cette clé est épuisé. Rechargez sur https://platform.deepseek.com ou changez de clé.',
+      500
+    );
+  }
+  return new AuditError(
+    `Le service d'analyse est indisponible (DeepSeek ${status}). Réessayez dans quelques instants.`,
+    502
+  );
+}
+
+export async function runAudit(input: AuditInput): Promise<AuditReport> {
+  const apiKey = readApiKey();
 
   let lastProblem = '';
   const deadline = Date.now() + TOTAL_BUDGET_MS;
@@ -87,24 +114,7 @@ async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number
     });
 
     if (!response.ok) {
-      const errBody = await response.text();
-      console.error(`DeepSeek ${response.status}:`, errBody.slice(0, 500));
-      if (response.status === 401 || response.status === 403) {
-        throw new AuditError(
-          'DeepSeek a refusé la clé API. Générez une clé sur https://platform.deepseek.com/api_keys et mettez à jour DEEPSEEK_API_KEY.',
-          500
-        );
-      }
-      if (response.status === 402) {
-        throw new AuditError(
-          'Le crédit DeepSeek de cette clé est épuisé. Rechargez sur https://platform.deepseek.com ou changez de clé.',
-          500
-        );
-      }
-      throw new AuditError(
-        `Le service d'analyse est indisponible (DeepSeek ${response.status}). Réessayez dans quelques instants.`,
-        502
-      );
+      throw deepSeekHttpError(response.status, await response.text());
     }
 
     const data: any = await response.json();
