@@ -9,12 +9,14 @@ import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-v4-flash';
 
-// Délais maximaux par appel DeepSeek, asymétriques : la première tentative
-// absorbe les générations lentes (les consignes longues dépassent la minute),
-// le retry se contente du reliquat. Total 180 s, large marge sous la fenêtre
-// maxDuration de 300 s (vercel.json, Fluid Compute actif).
-const FIRST_CALL_TIMEOUT_MS = 100_000;
-const RETRY_CALL_TIMEOUT_MS = 80_000;
+// Budget d'un audit : 290 s au total, sous la limite de 300 s retenue pour la
+// requête HTTP (Node, proxy Traefik illimité). Le premier appel reçoit 280 s :
+// la génération avec raisonnement dépasse 100 s une fois sur deux sur une
+// consigne longue (médiane 103 s, maximum mesuré 130 s). Le retry, utile après
+// une réponse invalide, reçoit le reliquat du budget ; après une expiration il
+// ne reste rien d'exploitable, donc pas de second appel.
+const TOTAL_BUDGET_MS = 290_000;
+const FIRST_CALL_TIMEOUT_MS = 280_000;
 
 // Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
 class CallTimeout extends Error {}
@@ -36,16 +38,17 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   }
 
   let lastProblem = '';
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : RETRY_CALL_TIMEOUT_MS;
+    const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : deadline - Date.now();
     let text: string;
     try {
       text = await callDeepSeek(apiKey, input, timeoutMs);
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
-      lastProblem = `pas de réponse de DeepSeek en ${timeoutMs / 1000} s`;
+      lastProblem = `pas de réponse de DeepSeek en ${Math.round(timeoutMs / 1000)} s`;
       console.warn(`Appel DeepSeek expiré (tentative ${attempt}/2)`);
-      continue;
+      break;
     }
     const { report, problem } = parseAndValidate(text, input.consigne);
     if (report) return report;
@@ -54,7 +57,7 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   }
 
   throw new AuditError(
-    `Le moteur d'IA n'a pas fourni de réponse conforme au contrat d'audit en deux tentatives (${lastProblem}). Relancez l'audit ; si le problème persiste, reformulez la consigne.`,
+    `Le moteur d'IA n'a pas fourni de réponse conforme au contrat d'audit (${lastProblem}). Relancez l'audit ; si le problème persiste, reformulez la consigne.`,
     502
   );
 }
@@ -123,7 +126,8 @@ function stripOuterQuotes(s: string): string {
   return s.trim().replace(/^[«"“”'\s]+/, '').replace(/[»"“”'\s]+$/, '');
 }
 
-function parseAndValidate(text: string, consigne: string): { report?: AuditReport; problem?: string } {
+// Exporté pour le banc de mesure (scripts hors dépôt), sans autre usage applicatif.
+export function parseAndValidate(text: string, consigne: string): { report?: AuditReport; problem?: string } {
   if (!text.trim()) return { problem: 'réponse vide' };
 
   let raw: any;
