@@ -86,6 +86,10 @@ async function reduireImage(fichier: File): Promise<string> {
 
 // Transcription d'une image de consigne par le serveur (route distincte de l'audit).
 export async function transcrireImage(fichier: File): Promise<string> {
+  // HEIC/HEIF d'iPhone : le type MIME peut être vide, l'extension fait foi.
+  if (/^image\/hei[cf]$/.test(fichier.type) || /\.hei[cf]$/i.test(fichier.name)) {
+    throw new Error(t.transcriptionHeic);
+  }
   if (!fichier.type.startsWith('image/')) throw new Error(t.transcriptionFichierInvalide);
   const image = await reduireImage(fichier);
 

@@ -26,6 +26,7 @@ export const t = {
   transcriptionFaite: "Texte transcrit depuis l'image. Relisez et corrigez avant de lancer l'audit.",
   transcriptionInterrompue: "Transcription interrompue",
   transcriptionFichierInvalide: "Fichier illisible comme image : PNG, JPEG, WebP ou GIF attendu.",
+  transcriptionHeic: "Photo au format HEIC, que le navigateur ne peut pas lire. Sur iPhone, faites une capture d'écran de la photo, qui produit un PNG. Pour les prochaines photos, allez dans Réglages, Appareil photo, Formats, puis Le plus compatible.",
   transcriptionTropLourde: "Image trop lourde après réduction, 4 Mo au maximum.",
   transcriptionTropLongue: "Cette transcription porterait la consigne au-delà de 20 000 caractères. Lancez l'audit sur le texte actuel ou retirez une partie avant d'ajouter cette image.",
   transcriptionEchec: "La transcription a échoué. Saisissez la consigne au clavier.",
