@@ -10,10 +10,29 @@ import { MiniRegle } from './components/RegleGraduee';
 import { STATUT_COLORS } from './components/couleurs';
 import { t, LOADING_MESSAGES } from './texts';
 
-const btnPrimary = "inline-flex min-h-11 items-center justify-center rounded-md bg-bleu-regle px-5 py-2.5 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30";
-const btnSecondary = "inline-flex min-h-11 items-center justify-center rounded-md border border-trait bg-white px-5 py-2.5 font-semibold transition-colors hover:border-bleu-regle hover:text-bleu-regle";
+const btnBase =
+  'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-btn px-6 py-3 text-[0.9rem] font-semibold transition-colors duration-[220ms] ease-cc';
+const btnPrimary = `${btnBase} bg-bleu-regle text-white hover:bg-bleu-survol disabled:pointer-events-none disabled:opacity-45`;
+const btnSecondary = `${btnBase} border-[1.5px] border-trait-fort bg-transparent hover:border-bleu-regle hover:text-bleu-regle disabled:pointer-events-none disabled:opacity-45`;
+const carte = 'rounded-card border border-trait bg-white p-6 md:p-8';
+const etiquette =
+  'flex items-center gap-2.5 font-mono text-label font-medium uppercase tracking-label-wide text-bleu-regle';
+const tiret = 'h-0.5 w-5 shrink-0 bg-rouge';
 
-// Les 3 questions de contexte (§7.3), libellés et exemples dans texts.ts.
+// Champs de l'en-tete de copie (signature du systeme) : cle en mono grise,
+// valeur en bleu, filet Seyes sous chaque champ.
+const EnteteCopie: React.FC<{ champs: Array<[string, string]> }> = ({ champs }) => (
+  <div className="flex flex-wrap gap-x-9 gap-y-1.5 font-mono text-[0.72rem] tracking-[0.04em]">
+    {champs.map(([cle, valeur]) => (
+      <div key={cle} className="flex items-baseline gap-2 whitespace-nowrap border-b border-seyes pb-1">
+        <span className="uppercase tracking-label text-gris-meta">{cle}</span>
+        <span className="font-medium text-bleu-regle">{valeur}</span>
+      </div>
+    ))}
+  </div>
+);
+
+// Les 3 questions de contexte, libelles et exemples dans texts.ts.
 const CONTEXT_QUESTIONS: Array<{
   field: keyof ContextAnswers;
   title: string;
@@ -25,9 +44,8 @@ const CONTEXT_QUESTIONS: Array<{
   { field: 'processus', title: t.q3Title, desc: t.q3Desc, options: t.q3Options },
 ];
 
-// Fusion d'un portefeuille importé : les entrées valides dont l'id n'existe pas
-// encore sont ajoutées, les doublons sont ignorés (§7.7). Exportée pour la
-// vérification de l'étape.
+// Fusion d'un portefeuille importe : les entrees valides dont l'id n'existe pas
+// encore sont ajoutees, les doublons sont ignores. Exportee pour la verification.
 export function fusionnerPortefeuille(
   existants: AuditResult[],
   importes: unknown
@@ -60,28 +78,28 @@ const App: React.FC = () => {
   const [portfolio, setPortfolio] = useState<AuditResult[]>(() => {
     try {
       const saved = localStorage.getItem('compagnon_portfolio');
-      // Écarte les entrées au format v1 (plat), incompatibles avec le contrat v2.
+      // Ecarte les entrees au format v1 (plat), incompatibles avec le contrat v2.
       return saved ? JSON.parse(saved).filter((x: any) => x?.dimensions) : [];
     } catch { return []; }
   });
 
-  // États UI
+  // Etats UI
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [errorTitle, setErrorTitle] = useState(t.analysisInterrupted);
   const loadingIntervalRef = useRef<number | null>(null);
 
-  // Transcription d'image : appel en cours, puis bandeau de relecture jusqu'à la sortie de l'écran.
+  // Transcription d'image : appel en cours, puis bandeau de relecture jusqu'a la sortie de l'ecran.
   const [transcribing, setTranscribing] = useState(false);
   const [transcrit, setTranscrit] = useState(false);
   const fichierImageRef = useRef<HTMLInputElement | null>(null);
 
   const [showAbout, setShowAbout] = useState(false);
 
-  // Ré-audit en cours : id de l'audit d'origine, attaché au prochain résultat.
+  // Re-audit en cours : id de l'audit d'origine, attache au prochain resultat.
   const [parentReaudit, setParentReaudit] = useState<string | null>(null);
-  // Portefeuille : bascule liste / matrice impact-faisabilité.
+  // Portefeuille : bascule liste / matrice impact-faisabilite.
   const [vueMatrice, setVueMatrice] = useState(false);
   const fichierImportRef = useRef<HTMLInputElement | null>(null);
 
@@ -89,6 +107,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('compagnon_portfolio', JSON.stringify(portfolio));
   }, [portfolio]);
+
+  // Fermeture de la fenetre A propos au clavier.
+  useEffect(() => {
+    if (!showAbout) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowAbout(false); };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [showAbout]);
 
   const startLoadingMessages = () => {
     let index = 0;
@@ -108,7 +134,7 @@ const App: React.FC = () => {
 
   useEffect(() => { setTranscrit(false); }, [step]);
 
-  // Ajout du texte transcrit à la suite de la consigne, jamais en écrasement.
+  // Ajout du texte transcrit a la suite de la consigne, jamais en ecrasement.
   const ajouterTranscription = async (fichier: File) => {
     if (transcribing) return;
     setTranscribing(true);
@@ -168,14 +194,14 @@ const App: React.FC = () => {
     alert(t.copied);
   };
 
-  // Export PDF : les fiches sont dépliées pour que le rapport s'imprime intégral,
+  // Export PDF : les fiches sont depliees pour que le rapport s'imprime integral,
   // la mise en page A4 vit dans index.css (@page, @media print).
   const exporterPdf = () => {
     document.querySelectorAll('details').forEach(d => { d.open = true; });
     window.print();
   };
 
-  // Ré-audit (§7.5) : consigne et contexte pré-remplis, filiation mémorisée.
+  // Re-audit : consigne et contexte pre-remplis, filiation memorisee.
   const demarrerReaudit = () => {
     if (!currentResult) return;
     setConsigne(currentResult.consigne);
@@ -185,7 +211,7 @@ const App: React.FC = () => {
     setStep(AppStep.AUDIT_INPUT);
   };
 
-  // Curseurs impact/faisabilité : mise à jour du rapport courant et du portefeuille.
+  // Curseurs impact/faisabilite : mise a jour du rapport courant et du portefeuille.
   const majPriorisation = (champ: 'impact' | 'faisabilite', valeur: number) => {
     if (!currentResult) return;
     const maj = { ...currentResult, [champ]: valeur };
@@ -226,28 +252,39 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen pb-20">
-      <header className="sticky top-0 z-40 border-b border-trait bg-papier print:hidden">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
+    <div className="relative flex min-h-screen flex-col">
+      {/* Marge du correcteur : filet rouge vertical, visible sur grand ecran */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 w-[1.5px] bg-rouge/[0.38] print:hidden"
+        style={{ left: 'max(calc(50vw - 560px), -10px)' }}
+      />
+
+      <header className="sticky top-0 z-40 border-b border-trait bg-papier/[0.92] backdrop-blur-[16px] print:hidden">
+        <div className="mx-auto flex h-[60px] max-w-4xl items-center justify-between px-4">
           <button
             onClick={() => { setStep(AppStep.WELCOME); setError(null); }}
-            className="flex min-h-11 items-center gap-3"
+            className="flex min-h-11 items-center font-display text-[0.98rem] font-bold tracking-[-0.01em]"
           >
-            <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-md bg-bleu-regle font-bold text-white">C</span>
-            <span className="font-semibold tracking-tight">{t.appTitle}</span>
+            {t.appTitle}
+            <span aria-hidden className="ml-1 mb-0.5 inline-block h-1.5 w-1.5 rounded-[1px] bg-rouge align-middle" />
           </button>
           <nav className="flex items-center gap-1">
             <button
               onClick={() => setShowAbout(true)}
               title={t.about}
               aria-label={t.about}
-              className="flex h-11 w-11 items-center justify-center rounded-md text-encre/70 transition-colors hover:text-bleu-regle"
+              className="flex h-11 w-11 items-center justify-center rounded-btn text-gris transition-colors duration-[220ms] ease-cc hover:text-bleu-regle"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </button>
             <button
               onClick={() => { setStep(AppStep.PORTFOLIO); setError(null); }}
-              className={`min-h-11 rounded-md px-3 text-15 font-medium transition-colors ${step === AppStep.PORTFOLIO ? 'text-bleu-regle' : 'text-encre/80 hover:text-bleu-regle'}`}
+              className={`min-h-11 rounded-btn px-3 text-[0.82rem] transition-colors duration-[220ms] ease-cc ${
+                step === AppStep.PORTFOLIO
+                  ? 'font-semibold text-encre underline decoration-rouge decoration-2 underline-offset-[6px]'
+                  : 'font-medium text-gris hover:text-bleu-regle'
+              }`}
             >
               {t.portfolio} ({portfolio.length})
             </button>
@@ -255,49 +292,59 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 md:py-14">
         {error && (
-          <div role="alert" className="mb-6 rounded-md border border-trait border-l-4 border-l-garance bg-white p-5">
+          <div role="alert" className="mb-6 rounded-card border border-trait-fort border-l-[3px] border-l-rouge bg-white p-5">
             <h3 className="font-semibold">{errorTitle}</h3>
-            <p className="mt-1 font-serif text-15">{error}</p>
+            <p className="mt-1 text-15 text-gris">{error}</p>
           </div>
         )}
 
         {step === AppStep.WELCOME && (
-          <div className="space-y-12 py-10 md:py-16">
-            <div className="max-w-2xl space-y-4">
-              <h2 className="text-34 font-bold tracking-tight md:text-48">
-                {t.heroTitle1} {t.heroTitle2}<br />
-                <span className="text-bleu-regle">{t.heroTitle3}</span>
+          <div className="space-y-11">
+            <div className="max-w-2xl space-y-6">
+              <EnteteCopie champs={[['Outil', t.appTitle], ['Appui', 'Chronique\u00A0Sociale,\u00A02026']]} />
+              <h2 className="font-display text-34 font-extrabold tracking-titre md:text-48">
+                {t.heroTitle1} {t.heroTitle2}{' '}
+                <em className="souligne-rouge not-italic">{t.heroTitle3}</em>
               </h2>
-              <p className="max-w-xl font-serif text-18">
+              <p className="max-w-xl text-[1.03rem] leading-[1.75] text-gris">
                 {t.heroSubtitle}
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <button
-                onClick={() => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }}
-                className="rounded-lg border border-trait bg-white p-6 text-left shadow-sm transition-colors hover:border-bleu-regle"
-              >
-                <h3 className="text-18 font-semibold">{t.btnAuditTitle}</h3>
-                <p className="mt-1.5 font-serif text-15 text-encre/80">{t.btnAuditDesc}</p>
-              </button>
-              <button
-                onClick={() => setStep(AppStep.QUICK_TEST)}
-                className="rounded-lg border border-trait bg-white p-6 text-left shadow-sm transition-colors hover:border-bleu-regle"
-              >
-                <h3 className="text-18 font-semibold">{t.btnQuickTitle}</h3>
-                <p className="mt-1.5 font-serif text-15 text-encre/80">{t.btnQuickDesc}</p>
-              </button>
+            <div className="grid gap-3.5 md:grid-cols-2">
+              {([
+                [t.btnAuditTitle, t.btnAuditDesc, 'Audit', () => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }],
+                [t.btnQuickTitle, t.btnQuickDesc, 'Diagnostic', () => setStep(AppStep.QUICK_TEST)],
+              ] as const).map(([titre, desc, label, action]) => (
+                <button
+                  key={titre}
+                  onClick={action}
+                  className="flex flex-col gap-3 rounded-card border border-trait bg-white p-6 text-left transition-[color,border-color,transform,box-shadow] duration-[220ms] ease-cc hover:-translate-y-[3px] hover:border-bleu-regle hover:shadow-hover"
+                >
+                  <span className={etiquette}>
+                    <span aria-hidden className={tiret} />
+                    {label}
+                  </span>
+                  <span className="font-display text-24 font-bold tracking-[-0.01em]">{titre}</span>
+                  <span className="text-15 text-gris">{desc}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
 
         {step === AppStep.AUDIT_INPUT && (
-          <div className="mx-auto max-w-2xl">
-            <div className="space-y-5 rounded-lg border border-trait bg-white p-6 md:p-8">
-              <h2 className="text-24 font-bold">{t.step1Title}</h2>
+          <div className="mx-auto max-w-2xl space-y-5">
+            <div className="space-y-2.5">
+              <p className={etiquette}>
+                <span aria-hidden className={tiret} />
+                Étape 1 sur 2
+              </p>
+              <h2 className="font-display text-34 font-extrabold tracking-section">{t.step1Title.replace('1. ', '')}</h2>
+            </div>
+            <div className={`space-y-4.5 ${carte}`}>
               <textarea
                 value={consigne}
                 onChange={(e) => setConsigne(e.target.value)}
@@ -313,10 +360,10 @@ const App: React.FC = () => {
                 }}
                 disabled={transcribing}
                 placeholder={t.step1Placeholder}
-                className="h-56 w-full resize-none rounded-md border border-trait bg-white p-4 font-serif text-15 disabled:opacity-60"
+                className="h-56 w-full resize-y rounded-card border-[1.5px] border-trait-fort bg-white p-4 text-15 transition-colors duration-[220ms] ease-cc focus:border-bleu-regle focus:outline-none disabled:opacity-60"
               />
-              <p className="text-13 text-encre/70">{t.consigneConfidentialite}</p>
-              <div className="space-y-2 rounded-md border border-dashed border-trait p-4">
+              <p className="text-desc text-gris">{t.consigneConfidentialite}</p>
+              <div className="space-y-2.5 rounded-card border border-dashed border-trait-fort p-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
@@ -339,10 +386,10 @@ const App: React.FC = () => {
                     aria-hidden
                     tabIndex={-1}
                   />
-                  <p className="text-13 text-encre/70">{t.imageAide}</p>
+                  <p className="min-w-[200px] flex-1 text-desc text-gris">{t.imageAide}</p>
                 </div>
-                <p className="text-13 text-encre/70">{t.imageConfidentialite}</p>
-                <p role="status" aria-live="polite" className="text-15 font-medium">
+                <p className="text-desc text-gris">{t.imageConfidentialite}</p>
+                <p role="status" aria-live="polite" className="text-desc font-medium">
                   {transcribing ? t.transcriptionEnCours : transcrit ? t.transcriptionFaite : ''}
                 </p>
               </div>
@@ -351,64 +398,71 @@ const App: React.FC = () => {
                 onClick={() => setStep(AppStep.AUDIT_QUESTIONS)}
                 className={`${btnPrimary} w-full`}
               >
-                {t.btnNextContext}
+                {t.btnNextContext} →
               </button>
             </div>
           </div>
         )}
 
         {step === AppStep.AUDIT_QUESTIONS && (
-          <div className="mx-auto max-w-2xl">
-            <div className="space-y-8 rounded-lg border border-trait bg-white p-6 md:p-8">
-              <div className="space-y-1.5">
-                <h2 className="text-24 font-bold">{t.step2Title}</h2>
-                <p className="text-15 text-encre/70">{t.step2Subtitle}</p>
-              </div>
-
+          <div className="mx-auto max-w-2xl space-y-5">
+            <div className="space-y-2.5">
+              <p className={etiquette}>
+                <span aria-hidden className={tiret} />
+                Étape 2 sur 2
+              </p>
+              <h2 className="font-display text-34 font-extrabold tracking-section">{t.step2Title.replace('2. ', '')}</h2>
+              <p className="max-w-prose text-15 text-gris">{t.step2Subtitle}</p>
+            </div>
+            <div className={`space-y-7 ${carte}`}>
               {CONTEXT_QUESTIONS.map((q, qi) => (
-                <div key={q.field} className="space-y-3">
-                  <div className="space-y-1">
-                    <p className="flex items-center gap-2 font-semibold">
-                      <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-kraft text-13 font-bold">{qi + 1}</span>
-                      {q.title}
-                    </p>
-                    <p className="ml-8 text-13 text-encre/70">{q.desc}</p>
-                  </div>
-                  <div className="grid gap-2">
-                    {q.options.map(o => {
-                      const selected = contextAnswers[q.field] === o.label;
-                      return (
-                        <button
-                          key={o.label}
-                          aria-pressed={selected}
-                          onClick={() => setContextAnswers(prev => ({ ...prev, [q.field]: o.label }))}
-                          className={`min-h-11 rounded-md border px-4 py-3 text-left transition-colors ${selected ? 'border-bleu-regle ring-1 ring-bleu-regle' : 'border-trait hover:border-encre/40'}`}
-                        >
-                          <span className={`block text-15 ${selected ? 'font-semibold text-bleu-regle' : 'font-medium'}`}>{o.label}</span>
-                          <span className="block text-13 text-encre/70">{t.examplePrefix} {o.ex}</span>
-                        </button>
-                      );
-                    })}
+                <div key={q.field} className="flex items-baseline gap-3.5">
+                  <span aria-hidden className="min-w-6 font-mono text-[0.72rem] font-medium text-bleu-regle/65">
+                    {String(qi + 1).padStart(2, '0')}
+                  </span>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="text-15 font-semibold">{q.title}</p>
+                      <p className="mt-0.5 text-desc text-gris">{q.desc}</p>
+                    </div>
+                    <div className="grid gap-2">
+                      {q.options.map(o => {
+                        const selected = contextAnswers[q.field] === o.label;
+                        return (
+                          <button
+                            key={o.label}
+                            aria-pressed={selected}
+                            onClick={() => setContextAnswers(prev => ({ ...prev, [q.field]: o.label }))}
+                            className={`min-h-11 rounded-btn border px-4 py-3 text-left transition-colors duration-[220ms] ease-cc ${
+                              selected ? 'border-bleu-regle bg-bleu-clair' : 'border-trait-fort bg-white hover:border-bleu-regle'
+                            }`}
+                          >
+                            <span className={`block text-15 ${selected ? 'font-semibold text-bleu-regle' : 'font-medium'}`}>{o.label}</span>
+                            <span className="block text-[0.82rem] leading-[1.5] text-gris">{t.examplePrefix} {o.ex}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ))}
 
-              <div className="border-t border-trait pt-6">
+              <div className="space-y-2.5 border-t border-dashed border-trait-fort pt-6">
                 <button
                   disabled={loading || !contextAnswers.synchrone || !contextAnswers.donnees || !contextAnswers.processus}
                   onClick={handleAuditSubmit}
-                  className="w-full rounded-md bg-bleu-regle py-4 font-semibold text-white transition-colors hover:bg-encre disabled:pointer-events-none disabled:opacity-30"
+                  className={`${btnPrimary} w-full`}
                 >
                   {loading ? (
-                    <span className="flex flex-col items-center gap-1.5">
-                      <span className="flex items-center gap-3">
-                        <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span aria-live="polite">{loadingStep}</span>
-                      </span>
-                      <span className="text-13 font-medium opacity-70">{t.loadingWait}</span>
+                    <span className="flex items-center gap-3">
+                      <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      <span aria-live="polite">{loadingStep}</span>
                     </span>
-                  ) : t.btnLaunchAudit}
+                  ) : `${t.btnLaunchAudit} →`}
                 </button>
+                {loading && (
+                  <p className="text-center font-mono text-[0.72rem] text-gris-meta">{t.loadingWait}</p>
+                )}
               </div>
             </div>
           </div>
@@ -417,11 +471,18 @@ const App: React.FC = () => {
         {step === AppStep.AUDIT_RESULT && currentResult && (
           <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-34 font-bold tracking-tight">{t.reportTitle}</h2>
-                <p className="mt-1 text-13 text-encre/70">{currentResult.date} · {currentResult.title}</p>
+              <div className="min-w-0 space-y-4">
+                <EnteteCopie
+                  champs={[
+                    ['Date', currentResult.date],
+                    ['Score', `${currentResult.score_robustesse}\u00A0/\u00A012`],
+                    ['Statut', currentResult.statut.replace(' ', '\u00A0')],
+                  ]}
+                />
+                <h2 className="font-display text-34 font-extrabold tracking-section">{t.reportTitle}</h2>
+                <p className="max-w-[520px] text-15 text-gris">«&nbsp;{currentResult.title}&nbsp;»</p>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2 print:hidden">
+              <div className="flex flex-wrap gap-2 whitespace-nowrap print:hidden">
                 <button onClick={demarrerReaudit} className={btnSecondary}>{t.btnReaudit}</button>
                 <button onClick={exporterPdf} className={btnSecondary}>{t.btnExportPdf}</button>
                 <button onClick={copyAsJson} className={btnSecondary}>{t.btnCopyJson}</button>
@@ -439,9 +500,15 @@ const App: React.FC = () => {
 
         {step === AppStep.PORTFOLIO && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-34 font-bold tracking-tight">{t.portfolio}</h2>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="space-y-2.5">
+                <p className={etiquette}>
+                  <span aria-hidden className={tiret} />
+                  {t.portfolio}
+                </p>
+                <h2 className="font-display text-34 font-extrabold tracking-section">{t.portfolio}</h2>
+              </div>
+              <div className="flex flex-wrap gap-2 whitespace-nowrap">
                 <button onClick={() => setVueMatrice(v => !v)} className={btnSecondary} disabled={portfolio.length === 0}>
                   {vueMatrice ? t.btnVueListe : t.btnVueMatrice}
                 </button>
@@ -460,45 +527,48 @@ const App: React.FC = () => {
             </div>
 
             {portfolio.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-encre/30 py-20 text-center text-encre/70">
-                <p className="font-medium">{t.portfolioEmpty}</p>
+              <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-trait-fort py-20 text-center">
+                <p className="text-15 text-gris">{t.portfolioEmpty}</p>
                 <button
                   onClick={() => { setParentReaudit(null); setStep(AppStep.AUDIT_INPUT); setError(null); }}
-                  className="mt-3 min-h-11 rounded-md px-3 font-medium text-bleu-regle hover:underline"
+                  className={btnPrimary}
                 >
-                  {t.portfolioStart}
+                  {t.portfolioStart} →
                 </button>
               </div>
             ) : vueMatrice ? (
               <Matrice audits={portfolio} onOuvrir={ouvrirRapport} />
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {portfolio.map(item => {
                   const parent = item.parentId ? portfolio.find(p => p.id === item.parentId) : undefined;
                   return (
                     <li key={item.id}>
                       <button
                         onClick={() => ouvrirRapport(item)}
-                        className="w-full rounded-lg border border-trait bg-white p-4 text-left shadow-sm transition-colors hover:border-bleu-regle md:px-5"
+                        className="w-full rounded-card border border-trait bg-white p-4 text-left transition-[color,border-color,transform] duration-[220ms] ease-cc hover:translate-x-1 hover:border-bleu-regle md:px-5"
                       >
-                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                          <div className="min-w-0 flex-1 basis-52">
-                            <p className="truncate font-semibold">{item.title}</p>
-                            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-13 text-encre/70">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5">
+                          <div className="min-w-0 flex-1 basis-56 space-y-1">
+                            <p className="truncate text-15 font-semibold">{item.title}</p>
+                            <p className="flex flex-wrap items-center gap-2.5 font-mono text-[0.7rem] tracking-[0.04em] text-gris-meta">
                               {item.date}
                               {item.parentId && (
-                                <span className="rounded-xs bg-kraft px-1.5 py-0.5 text-[11px] font-semibold text-encre">
-                                  {t.badgeRevision} « {(parent?.title ?? '?').slice(0, 40)} »
+                                <span
+                                  className="rounded-xs border border-trait bg-bande px-1.5 py-0.5 font-medium uppercase tracking-[0.06em]"
+                                  title={`${t.badgeRevision} « ${(parent?.title ?? '?').slice(0, 40)} »`}
+                                >
+                                  {t.badgeRevision.replace(' de', '')}
                                 </span>
                               )}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <MiniRegle score={item.score_robustesse} className="w-28 md:w-36" />
-                            <span className="w-12 whitespace-nowrap text-right text-18 font-bold">
-                              {item.score_robustesse}<span className="text-13 font-medium text-encre/70">/12</span>
+                          <div className="flex flex-wrap items-center gap-4">
+                            <MiniRegle score={item.score_robustesse} className="w-24 md:w-36" />
+                            <span className="w-13 whitespace-nowrap text-right font-mono text-[1rem] font-semibold text-bleu-regle">
+                              {item.score_robustesse}<span className="text-label font-normal text-gris-meta">/12</span>
                             </span>
-                            <span className="flex w-32 items-center gap-1.5 whitespace-nowrap text-13 font-medium">
+                            <span className="flex w-34 items-center gap-2 whitespace-nowrap font-mono text-[0.7rem] uppercase tracking-[0.08em] text-gris">
                               <span aria-hidden className="h-2 w-2 shrink-0 rounded-xs" style={{ background: STATUT_COLORS[item.statut] }} />
                               {item.statut}
                             </span>
@@ -518,70 +588,74 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="border-t border-trait print:hidden">
-        <div className="mx-auto max-w-4xl px-4 py-6 text-13 text-encre/70">
-          {t.footerBy}{' '}
-          <a
-            href={t.footerAuthorUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-encre underline decoration-trait underline-offset-2 transition-colors hover:text-bleu-regle"
-          >
-            {t.footerAuthor}
-          </a>
+      <footer className="border-t border-trait bg-bande print:hidden">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-meta text-gris-meta">
+          <div>{t.footerBy} {t.footerAuthor}</div>
+          <nav aria-label="Pied de page" className="flex flex-wrap gap-5">
+            <a
+              href={t.footerAuthorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gris-meta transition-colors duration-[220ms] ease-cc hover:text-bleu-regle"
+            >
+              rochane.fr ↗
+            </a>
+          </nav>
         </div>
       </footer>
 
-      {/* Modal À propos / Confidentialité */}
+      {/* Fenetre A propos / Confidentialite */}
       {showAbout && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-encre/50 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-encre/50 p-4 pb-8"
           role="dialog"
           aria-modal="true"
           aria-labelledby="apropos-titre"
           onClick={() => setShowAbout(false)}
         >
           <div
-            className="w-full max-w-lg rounded-lg border border-trait bg-papier p-6 shadow-lg md:p-8"
+            className="m-auto max-h-[calc(100dvh-3rem)] w-full max-w-lg space-y-5 overflow-y-auto rounded-card border border-trait-fort bg-papier p-6 shadow-float md:p-8"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
-              <h3 id="apropos-titre" className="text-24 font-bold">{t.aboutTitle}</h3>
+              <div className="space-y-2.5">
+                <p className={etiquette}>
+                  <span aria-hidden className={tiret} />
+                  {t.aboutTitle}
+                </p>
+                <h3 id="apropos-titre" className="font-display text-24 font-bold tracking-[-0.01em]">{t.appTitle}</h3>
+              </div>
               <button
                 onClick={() => setShowAbout(false)}
                 aria-label={t.aboutBtnClose}
-                className="-m-2 flex h-11 w-11 items-center justify-center rounded-md text-encre/70 hover:text-encre"
+                className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-btn text-gris transition-colors duration-[220ms] ease-cc hover:text-bleu-regle"
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="h-5.5 w-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-15">
-              <p className="font-serif">
-                <strong className="font-sans font-semibold">{t.appTitle}</strong> {t.aboutP1}
-              </p>
+            <p className="text-15 leading-[1.7]">
+              <strong className="font-semibold">{t.appTitle}</strong> {t.aboutP1}
+            </p>
 
-              <div className="space-y-2 rounded-md bg-kraft p-4">
-                <h4 className="flex items-center gap-2 font-semibold">
-                  <svg className="h-4 w-4 shrink-0 text-bleu-regle" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-.727-.061-1.44-.178-2.072z" /></svg>
-                  {t.aboutPrivacyTitle}
-                </h4>
-                <ul className="ml-4 list-disc space-y-1">
-                  <li>{t.aboutPrivacyDesc1}</li>
-                  <li>{t.aboutPrivacyDesc2}</li>
-                  <li>{t.aboutPrivacyDesc3}</li>
-                  <li>{t.aboutPrivacyDesc4}</li>
-                </ul>
-              </div>
-
-              <p className="font-serif">
-                {t.aboutP2}
-              </p>
+            <div className="space-y-2.5 rounded-card border border-trait bg-bande p-4 md:p-5">
+              <h4 className="font-mono text-label font-medium uppercase tracking-label text-bleu-regle">
+                {t.aboutPrivacyTitle}
+              </h4>
+              <ul className="text-desc">
+                {[t.aboutPrivacyDesc1, t.aboutPrivacyDesc2, t.aboutPrivacyDesc3, t.aboutPrivacyDesc4].map((ligne, i, tab) => (
+                  <li key={i} className={i < tab.length - 1 ? 'border-b border-trait py-1.5' : 'py-1.5'}>{ligne}</li>
+                ))}
+              </ul>
             </div>
+
+            <p className="text-desc text-gris">
+              {t.aboutP2}
+            </p>
 
             <button
               onClick={() => setShowAbout(false)}
-              className={`${btnPrimary} mt-6 w-full`}
+              className={`${btnPrimary} w-full`}
             >
               {t.aboutBtnClose}
             </button>

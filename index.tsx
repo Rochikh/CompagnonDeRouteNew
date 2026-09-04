@@ -2,7 +2,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/bricolage-grotesque';
-import '@fontsource/source-serif-4';
+import '@fontsource/instrument-sans';
+import '@fontsource/spline-sans-mono';
 import './index.css';
 import App from './App';
 

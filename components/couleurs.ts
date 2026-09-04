@@ -1,27 +1,18 @@
 import type { AuditStatut, QuickVerdict } from '../lib/doctrine';
 
-// Sémantique visuelle §6, direction robustesse : chaque statut porte sa couleur,
-// du risque critique (garance) au risque faible (sapin).
+// Semantique visuelle, systeme « Copie corrigee » : accent bleu unique pour le
+// pole robuste, rouge du correcteur pour l'annotation de risque, gris entre les
+// deux. Aucune couleur hors palette. Direction robustesse : HAUT = ROBUSTE.
 export const STATUT_COLORS: Record<AuditStatut, string> = {
-  'Risque critique': 'var(--color-garance)',
-  'Risque élevé': 'var(--color-brique)',
-  'Risque modéré': 'var(--color-ocre)',
-  'Risque faible': 'var(--color-sapin)',
-};
-
-// Variante pour les LIGNES sur fond clair (tracé du radar) : l'ocre pur est à
-// 2,95:1 sur carte blanche, sous le seuil AA graphique de 3:1 ; on l'assombrit
-// d'une pointe d'encre sans toucher au token.
-export const STATUT_TRAITS: Record<AuditStatut, string> = {
-  'Risque critique': 'var(--color-garance)',
-  'Risque élevé': 'var(--color-brique)',
-  'Risque modéré': 'color-mix(in srgb, var(--color-ocre) 80%, var(--color-encre))',
-  'Risque faible': 'var(--color-sapin)',
+  'Risque critique': 'var(--color-rouge)',
+  'Risque élevé': 'color-mix(in srgb, var(--color-rouge) 55%, var(--color-papier))',
+  'Risque modéré': 'var(--color-gris-meta)',
+  'Risque faible': 'var(--color-bleu-regle)',
 };
 
 // Verdicts du test rapide (direction inverse, canonique : haut = vulnérable).
 export const VERDICT_COLORS: Record<QuickVerdict, string> = {
-  'Robustesse élevée': 'var(--color-sapin)',
-  'Vulnérabilité modérée': 'var(--color-ocre)',
-  'Vulnérabilité critique': 'var(--color-garance)',
+  'Robustesse élevée': 'var(--color-bleu-regle)',
+  'Vulnérabilité modérée': 'var(--color-gris-meta)',
+  'Vulnérabilité critique': 'var(--color-rouge)',
 };

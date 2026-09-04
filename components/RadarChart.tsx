@@ -1,11 +1,12 @@
 import React from 'react';
 import { DIMENSIONS } from '../lib/doctrine';
 import type { AuditStatut, DimensionKey } from '../lib/doctrine';
-import { STATUT_COLORS, STATUT_TRAITS } from './couleurs';
 
 interface RadarChartProps {
   notes: Record<DimensionKey, number>;
-  statut: AuditStatut;
+  // Conserve pour le contrat du composant : la lecture du statut passe par la
+  // regle graduee, le radar reste monochrome (accent unique du systeme).
+  statut?: AuditStatut;
 }
 
 const SIZE = 340;
@@ -25,78 +26,91 @@ function ringPath(level: number): string {
   return `M ${pts.map(p => `${p.x},${p.y}`).join(' L ')} Z`;
 }
 
-const RadarChart: React.FC<RadarChartProps> = ({ notes, statut }) => {
-  const couleur = STATUT_COLORS[statut];
-  const trait = STATUT_TRAITS[statut];
-
+// Radar des 4 dimensions, en trait bleu unique et trois opacites (aplat 0,14,
+// trait porteur 0,5), a la grammaire des pictogrammes du systeme. Surface
+// pleine = robuste. Les etiquettes sont posees en HTML au-dessus du trace :
+// elles restent selectionnables et suivent la meme echelle mono que le reste.
+const RadarChart: React.FC<RadarChartProps> = ({ notes }) => {
   const points = DIMENSIONS.map((dim, i) => {
     const note = notes[dim.key] ?? 0;
-    const outer = pointAt(i, 3.55); // position des étiquettes, au-delà de l'anneau externe
-    return { ...pointAt(i, note), note, label: dim.label, outer, index: i };
+    return { ...pointAt(i, note), note, label: dim.label, index: i };
   });
 
   const pathData = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')} Z`;
-
   const resume = points.map(p => `${p.label} ${p.note} sur 3`).join(', ');
+
+  const etiquettes = points.map(p => {
+    const exterieur = pointAt(p.index, 3.55);
+    const lateral = Math.abs(exterieur.x - CENTER) > 1;
+    const x = lateral ? pointAt(p.index, 3.3).x : exterieur.x;
+    const y = lateral ? CENTER - 22 : exterieur.y;
+    return { ...p, left: `${(x / SIZE) * 100}%`, top: `${(y / SIZE) * 100}%` };
+  });
 
   return (
     <div className="flex flex-col items-center">
-      <svg
-        width="100%"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        className="max-w-[340px] overflow-visible"
-        role="img"
-        aria-label={`Radar des 4 dimensions, direction robustesse : ${resume}.`}
-      >
-        {/* Anneaux de graduation (1/3, 2/3, 3/3) */}
-        {[1, 2, 3].map(level => (
-          <path key={level} d={ringPath(level)} fill="none" stroke="var(--color-trait)" strokeWidth="1" />
+      <div className="relative w-full max-w-[340px]">
+        {etiquettes.map(e => (
+          <span
+            key={`label-${e.index}`}
+            className="absolute z-1 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[0.66rem] tracking-[0.04em] text-encre"
+            style={{ left: e.left, top: e.top }}
+          >
+            {e.label} · {e.note}/3
+          </span>
         ))}
+        <svg
+          width="100%"
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          className="block overflow-visible"
+          role="img"
+          aria-label={`Radar des 4 dimensions, direction robustesse : ${resume}.`}
+        >
+          {/* Anneaux de graduation (1/3, 2/3, 3/3) */}
+          {[1, 2, 3].map(level => (
+            <path key={level} d={ringPath(level)} fill="none" stroke="var(--color-trait)" strokeWidth="1" />
+          ))}
 
-        {/* Axes */}
-        {points.map(p => (
-          <line
-            key={`axe-${p.index}`}
-            x1={CENTER}
-            y1={CENTER}
-            x2={pointAt(p.index, 3).x}
-            y2={pointAt(p.index, 3).y}
-            stroke="var(--color-trait)"
-            strokeWidth="1"
+          {/* Axes */}
+          {points.map(p => (
+            <line
+              key={`axe-${p.index}`}
+              x1={CENTER}
+              y1={CENTER}
+              x2={pointAt(p.index, 3).x}
+              y2={pointAt(p.index, 3).y}
+              stroke="var(--color-trait)"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Surface de robustesse : pleine = robuste */}
+          <path
+            d={pathData}
+            fill="var(--color-bleu-regle)"
+            fillOpacity="0.14"
+            stroke="var(--color-bleu-regle)"
+            strokeOpacity="0.5"
+            strokeWidth="2.2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
           />
-        ))}
+          {points.map(p => (
+            <rect
+              key={`pt-${p.index}`}
+              x={p.x - 3.5}
+              y={p.y - 3.5}
+              width="7"
+              height="7"
+              rx="1"
+              fill="var(--color-bleu-regle)"
+            />
+          ))}
+        </svg>
+      </div>
 
-        {/* Surface de robustesse : pleine = robuste */}
-        <path d={pathData} fill={couleur} fillOpacity="0.15" stroke={trait} strokeWidth="2" strokeLinejoin="round" />
-        {points.map(p => (
-          <circle key={`pt-${p.index}`} cx={p.x} cy={p.y} r="3.5" fill={trait} />
-        ))}
-
-        {/* Étiquettes des axes, avec la note. Les axes latéraux portent leur
-            étiquette centrée juste au-dessus du sommet pour rester lisibles
-            sans déborder de la carte. */}
-        {points.map(p => {
-          const lateral = Math.abs(p.outer.x - CENTER) > 1;
-          const lx = lateral ? pointAt(p.index, 3.3).x : p.outer.x;
-          const ly = lateral ? CENTER - 12 : p.outer.y;
-          return (
-            <text
-              key={`label-${p.index}`}
-              x={lx}
-              y={ly}
-              textAnchor="middle"
-              dominantBaseline={!lateral && p.outer.y > CENTER ? 'hanging' : 'auto'}
-              className="text-[13px] font-medium"
-              fill="var(--color-encre)"
-            >
-              {p.label} · {p.note}/3
-            </text>
-          );
-        })}
-      </svg>
-
-      {/* Légende de direction (§6 : sémantique visuelle explicite) */}
-      <p className="mt-2 text-13 text-center" style={{ color: 'rgb(34 48 60 / 0.7)' }}>
+      {/* Legende de direction (semantique visuelle explicite) */}
+      <p className="mt-2 text-center font-mono text-label tracking-[0.02em] text-gris-meta">
         Plus la surface est étendue, plus l'évaluation est robuste.
       </p>
     </div>

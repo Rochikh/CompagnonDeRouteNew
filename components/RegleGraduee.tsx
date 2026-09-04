@@ -4,131 +4,93 @@ import { STATUT_COLORS } from './couleurs';
 
 const MAX = 12;
 
-// Limites visuelles des zones : la frontière passe à mi-chemin entre deux bandes
-// de seuils (un score de 3 est critique, un score de 4 est élevé).
-const ZONES = AUDIT_SEUILS.map(s => ({
-  from: s.min === 0 ? 0 : s.min - 0.5,
-  to: s.max === MAX ? MAX : s.max + 0.5,
-  couleur: STATUT_COLORS[s.statut],
-}));
+const cellules = (score: number) =>
+  Array.from({ length: MAX }, (_, i) => i < score);
 
-const ZONES_GRADIENT = `linear-gradient(to right, ${ZONES.map(
-  z => `${z.couleur} ${(z.from / MAX) * 100}% ${(z.to / MAX) * 100}%`
-).join(', ')})`;
-
-// Graduations fines au demi-point, franches à l'entier.
-const TICKS = Array.from({ length: MAX * 2 + 1 }, (_, i) => ({
-  pos: (i / (MAX * 2)) * 100,
-  entier: i % 2 === 0,
-}));
-
-// Mini-règle : version compacte de la signature, pour les listes du portefeuille
-// et la vue avant/après. Mêmes zones, remplissage jusqu'au score, repère encre.
-export const MiniRegle: React.FC<{ score: number; className?: string }> = ({ score, className }) => {
-  const pct = (score / MAX) * 100;
-  return (
-    <div
-      role="img"
-      aria-label={`Robustesse ${score} sur ${MAX} : ${statutFromScore(score)}.`}
-      className={`relative h-2.5 overflow-hidden rounded-xs border border-trait ${className ?? 'w-full'}`}
-    >
-      <div className="absolute inset-0" style={{ background: ZONES_GRADIENT, opacity: 0.22 }} />
-      <div className="absolute inset-0" style={{ background: ZONES_GRADIENT, clipPath: `inset(0 ${100 - pct}% 0 0)` }} />
-      <div className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-encre" style={{ left: `${pct}%` }} aria-hidden />
-    </div>
-  );
-};
+// Mini-regle : version compacte pour les listes du portefeuille et la vue
+// avant/apres. Douze cases, remplies jusqu'au score. Direction robustesse.
+export const MiniRegle: React.FC<{ score: number; className?: string }> = ({ score, className }) => (
+  <div
+    role="img"
+    aria-label={`Robustesse ${score} sur ${MAX} : ${statutFromScore(score)}.`}
+    className={`flex gap-[2px] ${className ?? 'w-full'}`}
+  >
+    {cellules(score).map((pleine, i) => (
+      <span
+        key={i}
+        aria-hidden
+        className={`h-2 flex-1 rounded-xs ${pleine ? 'bg-bleu-regle' : 'bg-vide'}`}
+      />
+    ))}
+  </div>
+);
 
 interface RegleGradueeProps {
   score: number;
 }
 
+// Signature du rapport : carte sur reglure Seyes, chiffre en mono, douze cases
+// remplies jusqu'au score, bandes de seuils sous la regle, statut ecrit en
+// annotation rouge du correcteur. Aucune animation de remplissage : l'etat de
+// base est l'etat final, le rapport s'imprime complet.
 const RegleGraduee: React.FC<RegleGradueeProps> = ({ score }) => {
   const statut = statutFromScore(score);
   const couleur = STATUT_COLORS[statut];
-  const pct = (score / MAX) * 100;
-
-  const labelStyle: React.CSSProperties =
-    pct < 14 ? { left: 0 }
-    : pct > 86 ? { right: 0 }
-    : { left: `${pct}%`, transform: 'translateX(-50%)' };
+  const seuil = AUDIT_SEUILS.find(s => score >= s.min && score <= s.max)!;
 
   return (
-    <div role="img" aria-label={`Score de robustesse ${score} sur 12 : ${statut}. Substituabilité ${MAX - score} sur 12.`} className="w-full select-none">
-      {/* Statut, imprimé au-dessus du curseur après le remplissage */}
-      <div className="relative h-8">
-        <span
-          className="absolute bottom-0 inline-flex items-center gap-2 whitespace-nowrap text-18 font-semibold"
-          style={{
-            ...labelStyle,
-            animation: 'regle-imprimer 400ms ease-out 700ms backwards',
-          }}
-        >
-          <span aria-hidden className="h-2.5 w-2.5 rounded-xs" style={{ background: couleur }} />
-          {statut}
-        </span>
-      </div>
-
-      {/* Curseur triangulaire, glisse jusqu'à la valeur */}
-      <div className="relative h-2.5" aria-hidden>
-        <div
-          className="absolute top-0 -translate-x-1/2"
-          style={{
-            left: `${pct}%`,
-            width: 0,
-            height: 0,
-            borderLeft: '7px solid transparent',
-            borderRight: '7px solid transparent',
-            borderTop: '9px solid var(--color-encre)',
-            animation: 'regle-curseur 700ms ease-out',
-          }}
-        />
-      </div>
-
-      {/* La règle : zones en attente, remplissage jusqu'à la valeur, graduations */}
-      <div className="relative h-7 overflow-hidden rounded-md border border-trait" aria-hidden>
-        <div className="absolute inset-0" style={{ background: ZONES_GRADIENT, opacity: 0.22 }} />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: ZONES_GRADIENT,
-            clipPath: `inset(0 ${100 - pct}% 0 0)`,
-            animation: 'regle-remplir 700ms ease-out',
-          }}
-        />
-        {TICKS.map(t => (
-          <div
-            key={t.pos}
-            className="absolute top-0 w-px"
-            style={{
-              left: `${t.pos}%`,
-              height: t.entier ? '11px' : '6px',
-              background: 'rgb(34 48 60 / 0.45)',
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Numéros de graduation */}
-      <div className="relative mt-1 h-4 text-[11px] font-medium" aria-hidden style={{ color: 'rgb(34 48 60 / 0.7)' }}>
-        {Array.from({ length: MAX + 1 }, (_, i) => (
+    <div
+      role="img"
+      aria-label={`Score de robustesse ${score} sur ${MAX} : ${statut}. ${seuil.action}. Substituabilité ${MAX - score} sur ${MAX}.`}
+      className="reglure-seyes rounded-card border border-trait-fort p-6 md:p-8"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5">
+        <div>
+          <p className="font-mono text-label font-medium uppercase tracking-label text-gris-meta">
+            Robustesse
+          </p>
+          <p className="mt-1.5 flex items-baseline gap-2">
+            <span className="font-mono text-figure font-semibold tracking-titre text-bleu-regle">{score}</span>
+            <span className="font-mono text-meta text-gris-meta">/ {MAX}</span>
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-1.5">
           <span
-            key={i}
-            className="absolute"
-            style={{
-              left: `${(i / MAX) * 100}%`,
-              transform: i === 0 ? 'none' : i === MAX ? 'translateX(-100%)' : 'translateX(-50%)',
-            }}
+            className="flex items-center gap-2.5 font-mono text-[0.74rem] font-medium uppercase tracking-label"
+            style={{ color: couleur }}
           >
-            {i}
+            <span aria-hidden className="h-0.5 w-5 shrink-0" style={{ background: couleur }} />
+            {statut}
           </span>
+          <span className="text-desc text-gris">{seuil.action}</span>
+        </div>
+      </div>
+
+      <div className="mt-5 flex gap-[3px]" aria-hidden>
+        {cellules(score).map((pleine, i) => (
+          <span key={i} className={`h-2.5 flex-1 rounded-xs ${pleine ? 'bg-bleu-regle' : 'bg-vide'}`} />
         ))}
       </div>
 
-      {/* Double lecture (décision 4) */}
-      <p className="mt-2 text-15">
-        <span className="font-semibold">Robustesse {score}/12</span>
-        <span style={{ color: 'rgb(34 48 60 / 0.7)' }}> · Substituabilité {MAX - score}/12</span>
+      <div className="mt-1.5 grid grid-cols-4 gap-[3px]" aria-hidden>
+        {AUDIT_SEUILS.map(z => {
+          const actif = z.statut === statut;
+          return (
+            <div
+              key={z.statut}
+              className={`pt-1 font-mono text-[0.64rem] tracking-[0.04em] ${
+                actif ? 'border-t-2 border-rouge font-semibold text-rouge' : 'border-t border-trait text-gris-meta'
+              }`}
+            >
+              {z.min}–{z.max} · {z.statut.replace('Risque ', '')}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Double lecture (decision 4) */}
+      <p className="mt-5 border-t border-dashed border-trait-fort pt-3 font-mono text-[0.72rem] text-gris-meta">
+        <span className="font-medium text-encre">Robustesse {score}/12</span> · Substituabilité {MAX - score}/12
       </p>
     </div>
   );
