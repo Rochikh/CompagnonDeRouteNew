@@ -42,6 +42,9 @@ const FIRST_CALL_TIMEOUT_MS = 280_000;
 
 // Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
 class CallTimeout extends Error {}
+// 429 Claude (limite de connexions simultanées du workspace) : l'audit se
+// replie immédiatement sur DeepSeek, sans nouvel appel Claude.
+class ClaudeRateLimited extends Error {}
 
 export class AuditError extends Error {
   constructor(message: string, public status: number) {
@@ -85,19 +88,30 @@ export function deepSeekHttpError(status: number, errBody: string): AuditError {
 }
 
 export async function runAudit(input: AuditInput): Promise<AuditReport> {
-  const provider = readProvider();
-  const apiKey = readApiKey(provider === 'claude' ? 'ANTHROPIC_API_KEY' : 'DEEPSEEK_API_KEY');
-  const providerLabel = provider === 'claude' ? 'Claude' : 'DeepSeek';
+  // Fournisseur effectif de l'audit : passe de claude à deepseek sur 429 et y reste.
+  let provider = readProvider();
+  let apiKey = readApiKey(provider === 'claude' ? 'ANTHROPIC_API_KEY' : 'DEEPSEEK_API_KEY');
 
   let lastProblem = '';
   const deadline = Date.now() + TOTAL_BUDGET_MS;
   for (let attempt = 1; attempt <= 2; attempt++) {
     const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : deadline - Date.now();
+    const providerLabel = provider === 'claude' ? 'Claude' : 'DeepSeek';
     let text: string;
     try {
-      text = provider === 'claude'
-        ? await callClaude(apiKey, input, timeoutMs)
-        : await callDeepSeek(apiKey, input, timeoutMs);
+      if (provider === 'claude') {
+        try {
+          text = await callClaude(apiKey, input, timeoutMs);
+        } catch (e) {
+          if (!(e instanceof ClaudeRateLimited)) throw e;
+          provider = 'deepseek';
+          apiKey = readApiKey('DEEPSEEK_API_KEY');
+          console.warn('Repli sur DeepSeek pour cet audit : Claude 429, limite de connexions simultanées atteinte');
+          text = await callDeepSeek(apiKey, input, Math.min(timeoutMs, deadline - Date.now()));
+        }
+      } else {
+        text = await callDeepSeek(apiKey, input, timeoutMs);
+      }
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
       lastProblem = `pas de réponse de ${providerLabel} en ${Math.round(timeoutMs / 1000)} s`;
@@ -167,6 +181,7 @@ function claudeError(e: unknown): Error {
   if (e instanceof Anthropic.APIConnectionTimeoutError) return new CallTimeout();
   if (e instanceof Anthropic.APIError) {
     console.error(`Claude ${e.status}:`, e.message.slice(0, 500));
+    if (e.status === 429) return new ClaudeRateLimited();
     if (e.status === 401 || e.status === 403) {
       return new AuditError(
         'Claude a refusé la clé API. Générez une clé sur https://platform.claude.com et mettez à jour ANTHROPIC_API_KEY.',
@@ -222,6 +237,16 @@ async function callClaude(apiKey: string, input: AuditInput, timeoutMs: number):
 
 function normalizeForInclusion(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Clé de fiche telle que renvoyée par le LLM : séquences \uXXXX restées
+// littérales après JSON.parse (observé sur « documenté » rendu « documenté »)
+// décodées, puis forme Unicode NFC, celle des clés de doctrine.ts.
+function normalizeFicheKey(s: string): string {
+  return s
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .normalize('NFC')
+    .trim();
 }
 
 function stripOuterQuotes(s: string): string {
@@ -299,6 +324,8 @@ export function parseAndValidate(text: string, consigne: string): { report?: Aud
   }
   for (const r of recos) {
     if (!r || typeof r.action !== 'string' || !r.action.trim()) return { problem: 'action de recommandation absente' };
+    if (typeof r.fiche !== 'string') return { problem: 'clé de fiche non textuelle' };
+    r.fiche = normalizeFicheKey(r.fiche);
     if (!(r.fiche in FICHES)) return { problem: `clé de fiche inconnue : "${r.fiche}"` };
   }
   const recommandations = recos
