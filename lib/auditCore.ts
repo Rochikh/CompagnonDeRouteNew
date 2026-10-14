@@ -1,13 +1,35 @@
-// Cœur partagé de l'audit (PLAN §3-§4) : appel DeepSeek, parsing, validation
-// stricte du contrat, retry unique sur réponse invalide. server.ts (dev) et
-// api/audit.ts (prod) sont des adaptateurs fins autour de runAudit, sans logique métier.
+// Cœur partagé de l'audit (PLAN §3-§4) : appel LLM, parsing, validation
+// stricte du contrat, retry unique sur réponse invalide. server.ts est un
+// adaptateur fin autour de runAudit, sans logique métier.
+// Fournisseur choisi par AUDIT_PROVIDER (deepseek par défaut, ou claude) ;
+// même prompt, même contrat, même validation pour les deux.
 
+import Anthropic from '@anthropic-ai/sdk';
+import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import { buildSystemPrompt, buildUserPrompt } from './prompt.js';
+import { buildAuditSchema } from './auditSchema.js';
 import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './doctrine.js';
 import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 
 export const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+const CLAUDE_MODEL = 'claude-opus-5-5';
+// Raisonnement adaptatif toujours actif sur Opus 5.5 ; `high` est l'équivalent
+// retenu du raisonnement DeepSeek complet. Le défaut de l'API serait `medium`.
+const CLAUDE_EFFORT = 'high';
+// Le raisonnement compte dans max_tokens même s'il n'est pas renvoyé.
+const CLAUDE_MAX_TOKENS = 16_000;
+
+type Provider = 'deepseek' | 'claude';
+
+function readProvider(): Provider {
+  const p = (process.env.AUDIT_PROVIDER ?? 'deepseek').trim().toLowerCase();
+  if (p === 'claude' || p === 'deepseek') return p;
+  throw new AuditError(
+    `Configuration serveur invalide : AUDIT_PROVIDER vaut "${p}", valeurs acceptées : deepseek ou claude.`,
+    500
+  );
+}
 
 // Budget d'un audit : 290 s au total, sous la limite de 300 s retenue pour la
 // requête HTTP (Node, proxy Traefik illimité). Le premier appel reçoit 280 s :
@@ -27,13 +49,14 @@ export class AuditError extends Error {
   }
 }
 
-// Clé DeepSeek partagée par l'audit et la transcription (lib/transcriptionCore.ts).
-export function readApiKey(): string {
-  const rawApiKey = process.env.DEEPSEEK_API_KEY;
+// Clé API lue dans l'environnement. DEEPSEEK_API_KEY par défaut, partagée par
+// l'audit DeepSeek et la transcription (lib/transcriptionCore.ts).
+export function readApiKey(varName = 'DEEPSEEK_API_KEY'): string {
+  const rawApiKey = process.env[varName];
   const apiKey = rawApiKey ? rawApiKey.trim().replace(/^['"]|['"]$/g, '').trim() : '';
   if (!apiKey) {
     throw new AuditError(
-      "Configuration serveur incomplète : la variable DEEPSEEK_API_KEY est absente. Ajoutez-la à l'environnement du serveur puis relancez.",
+      `Configuration serveur incomplète : la variable ${varName} est absente. Ajoutez-la à l'environnement du serveur puis relancez.`,
       500
     );
   }
@@ -62,7 +85,9 @@ export function deepSeekHttpError(status: number, errBody: string): AuditError {
 }
 
 export async function runAudit(input: AuditInput): Promise<AuditReport> {
-  const apiKey = readApiKey();
+  const provider = readProvider();
+  const apiKey = readApiKey(provider === 'claude' ? 'ANTHROPIC_API_KEY' : 'DEEPSEEK_API_KEY');
+  const providerLabel = provider === 'claude' ? 'Claude' : 'DeepSeek';
 
   let lastProblem = '';
   const deadline = Date.now() + TOTAL_BUDGET_MS;
@@ -70,11 +95,13 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
     const timeoutMs = attempt === 1 ? FIRST_CALL_TIMEOUT_MS : deadline - Date.now();
     let text: string;
     try {
-      text = await callDeepSeek(apiKey, input, timeoutMs);
+      text = provider === 'claude'
+        ? await callClaude(apiKey, input, timeoutMs)
+        : await callDeepSeek(apiKey, input, timeoutMs);
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
-      lastProblem = `pas de réponse de DeepSeek en ${Math.round(timeoutMs / 1000)} s`;
-      console.warn(`Appel DeepSeek expiré (tentative ${attempt}/2)`);
+      lastProblem = `pas de réponse de ${providerLabel} en ${Math.round(timeoutMs / 1000)} s`;
+      console.warn(`Appel ${providerLabel} expiré (tentative ${attempt}/2)`);
       break;
     }
     const { report, problem } = parseAndValidate(text, input.consigne);
@@ -94,6 +121,7 @@ async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number
   // envoyer les en-têtes tôt et le corps en fin de génération.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const started = Date.now();
   try {
     const response = await fetch(DEEPSEEK_URL, {
       method: 'POST',
@@ -118,6 +146,12 @@ async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number
     }
 
     const data: any = await response.json();
+    const u = data?.usage ?? {};
+    console.info(
+      `Audit DeepSeek ${DEEPSEEK_MODEL} : ${Math.round((Date.now() - started) / 1000)} s, ` +
+      `entrée=${u.prompt_tokens}, sortie=${u.completion_tokens}, ` +
+      `cache manqué=${u.prompt_cache_miss_tokens ?? 0}, cache lu=${u.prompt_cache_hit_tokens ?? 0}`
+    );
     return data?.choices?.[0]?.message?.content ?? '';
   } catch (e) {
     if (e instanceof AuditError) throw e;
@@ -126,6 +160,64 @@ async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Erreur Claude vers erreur applicative, même grille que deepSeekHttpError.
+function claudeError(e: unknown): Error {
+  if (e instanceof Anthropic.APIConnectionTimeoutError) return new CallTimeout();
+  if (e instanceof Anthropic.APIError) {
+    console.error(`Claude ${e.status}:`, e.message.slice(0, 500));
+    if (e.status === 401 || e.status === 403) {
+      return new AuditError(
+        'Claude a refusé la clé API. Générez une clé sur https://platform.claude.com et mettez à jour ANTHROPIC_API_KEY.',
+        500
+      );
+    }
+    return new AuditError(
+      `Le service d'analyse est indisponible (Claude ${e.status ?? 'réseau'}). Réessayez dans quelques instants.`,
+      502
+    );
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+async function callClaude(apiKey: string, input: AuditInput, timeoutMs: number): Promise<string> {
+  // Timeout en millisecondes sur la requête complète ; maxRetries à 0, sinon le
+  // SDK relancerait de lui-même après une expiration.
+  const client = new Anthropic({ apiKey, timeout: timeoutMs, maxRetries: 0 });
+  const started = Date.now();
+  let response: Anthropic.Message;
+  try {
+    response = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: CLAUDE_MAX_TOKENS,
+      // Bloc système stable (doctrine + barème) mis en cache ; la consigne varie
+      // et reste hors cache.
+      system: [{ type: 'text', text: buildSystemPrompt(), cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: buildUserPrompt(input.consigne, input.contextAnswers) }],
+      thinking: { type: 'adaptive' },
+      output_config: { effort: CLAUDE_EFFORT, format: jsonSchemaOutputFormat(buildAuditSchema()) }
+    });
+  } catch (e) {
+    throw claudeError(e);
+  }
+
+  const u = response.usage;
+  console.info(
+    `Audit Claude ${CLAUDE_MODEL} effort=${CLAUDE_EFFORT} : ${Math.round((Date.now() - started) / 1000)} s, ` +
+    `stop=${response.stop_reason}, entrée=${u.input_tokens}, sortie=${u.output_tokens}, ` +
+    `cache créé=${u.cache_creation_input_tokens ?? 0}, cache lu=${u.cache_read_input_tokens ?? 0}`
+  );
+
+  if (response.stop_reason === 'refusal') {
+    throw new AuditError(
+      "Claude a refusé d'analyser cette consigne. Reformulez-la ou retirez les passages qui pourraient être lus comme sensibles.",
+      502
+    );
+  }
+  // max_tokens ou autre arrêt anormal : le texte tronqué échouera au parsing et
+  // passera par le retry.
+  return response.content.filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
 function normalizeForInclusion(s: string): string {

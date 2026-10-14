@@ -9,6 +9,7 @@
     "start": "node server.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",
     "@fontsource/instrument-sans": "^5.3.0",
     "@fontsource/spline-sans-mono": "^5.3.0",

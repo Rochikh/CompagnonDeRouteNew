@@ -1,0 +1,32 @@
+[
+  {
+    "id": "bts-mco",
+    "fichier": "consignes/bts-mco.txt",
+    "attendu": 10,
+    "contextAnswers": {
+      "synchrone": "Oui obligatoire",
+      "donnees": "Données locales",
+      "processus": "Processus documenté et évalué"
+    }
+  },
+  {
+    "id": "moodle",
+    "fichier": "consignes/moodle.txt",
+    "attendu": 0,
+    "contextAnswers": {
+      "synchrone": "Non, asynchrone",
+      "donnees": "Données génériques",
+      "processus": "Seul le produit final"
+    }
+  },
+  {
+    "id": "cegep",
+    "fichier": "consignes/cegep.txt",
+    "attendu": 7,
+    "contextAnswers": {
+      "synchrone": "Non, asynchrone",
+      "donnees": "Données locales",
+      "processus": "Processus documenté et évalué"
+    }
+  }
+]
