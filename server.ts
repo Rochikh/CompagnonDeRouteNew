@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import { rateLimit } from "express-rate-limit";
 import { runAudit, AuditError } from "./lib/auditCore";
 import { transcrireImage } from "./lib/transcriptionCore";
+import { traduireRapport } from "./lib/traductionCore";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -21,6 +22,14 @@ const auditLimiter = rateLimit({
 // Compteur séparé pour la transcription d'images : une salle qui dépose des
 // captures ne consomme pas le quota d'audit, et inversement.
 const transcriptionLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requêtes. Réessayez dans quelques minutes." },
+});
+
+const traductionLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 60,
   standardHeaders: true,
@@ -53,6 +62,16 @@ app.post(["/api/transcription", "/absproxy/3000/api/transcription"], transcripti
     console.error("Erreur transcription:", error);
     const status = error instanceof AuditError ? error.status : 500;
     res.status(status).json({ error: error?.message || "Erreur interne du serveur pendant la transcription." });
+  }
+});
+
+app.post(["/api/traduction", "/absproxy/3000/api/traduction"], traductionLimiter, express.json(), async (req, res) => {
+  try {
+    res.json(await traduireRapport(req.body?.rapport, req.body?.langue));
+  } catch (error: any) {
+    console.error("Erreur traduction:", error);
+    const status = error instanceof AuditError ? error.status : 500;
+    res.status(status).json({ error: error?.message || "Erreur interne du serveur pendant la traduction." });
   }
 });
 

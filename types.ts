@@ -54,6 +54,18 @@ export interface AuditResult extends AuditReport {
   faisabilite?: number;
 }
 
+// Rapport traduit pour l'affichage seul (lib/traductionCore.ts) : le rapport
+// français reste celui de l'historique et des exports.
+export interface RapportTraduit {
+  rapport: AuditReport;
+  // Libellés traduits suivis du terme français entre parenthèses.
+  libelles: {
+    dimensions: Record<DimensionKey, string>;
+    // Par clé de fiche (inchangée), le titre traduit.
+    fiches: Record<string, string>;
+  };
+}
+
 export interface Fiche {
   id: number;
   name: string;

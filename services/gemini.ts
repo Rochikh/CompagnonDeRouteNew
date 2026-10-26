@@ -1,5 +1,5 @@
 import { DIMENSIONS } from '../lib/doctrine';
-import { AuditReport, ContextAnswers } from '../types';
+import { AuditReport, ContextAnswers, RapportTraduit } from '../types';
 import { t } from '../texts';
 
 // Garde-fou léger : la validation stricte du contrat est faite côté serveur (lib/auditCore),
@@ -110,4 +110,24 @@ export async function transcrireImage(fichier: File): Promise<string> {
   if (!response.ok) throw new Error(data?.error || t.transcriptionEchec);
   if (typeof data?.texte !== 'string' || !data.texte.trim()) throw new Error(t.transcriptionEchec);
   return data.texte;
+}
+
+// Traduction du rapport pour l'affichage (route distincte, le rapport français ne change pas).
+export async function traduireRapport(rapport: AuditReport, langue: string): Promise<RapportTraduit> {
+  const response = await fetch('api/traduction', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rapport, langue }),
+  });
+  let data: any;
+  try {
+    data = JSON.parse(await response.text());
+  } catch {
+    throw new Error(t.traductionEchec);
+  }
+  if (!response.ok) throw new Error(data?.error || t.traductionEchec);
+  if (!looksLikeAuditReport(data?.rapport) || !data?.libelles?.dimensions || !data?.libelles?.fiches) {
+    throw new Error(t.traductionEchec);
+  }
+  return data;
 }

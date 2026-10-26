@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppStep, AuditResult, ContextAnswers } from './types';
-import { auditConsigne, transcrireImage } from './services/gemini';
+import { AppStep, AuditResult, ContextAnswers, RapportTraduit } from './types';
+import { auditConsigne, transcrireImage, traduireRapport } from './services/gemini';
 import { MAX_CONSIGNE_CHARS } from './lib/limites';
 import Rapport from './components/Rapport';
 import TestRapide from './components/TestRapide';
@@ -102,6 +102,36 @@ const App: React.FC = () => {
   // Portefeuille : bascule liste / matrice impact-faisabilite.
   const [vueMatrice, setVueMatrice] = useState(false);
   const fichierImportRef = useRef<HTMLInputElement | null>(null);
+
+  // Traduction du rapport affiche, pour la lecture seule : currentResult et le
+  // portefeuille restent en francais.
+  const [langue, setLangue] = useState('');
+  const [traduction, setTraduction] = useState<RapportTraduit | null>(null);
+  const [traduisant, setTraduisant] = useState(false);
+  const [erreurTraduction, setErreurTraduction] = useState<string | null>(null);
+
+  // Changement de rapport : retour a la version francaise.
+  useEffect(() => {
+    setTraduction(null);
+    setErreurTraduction(null);
+  }, [currentResult?.id]);
+
+  const lancerTraduction = async () => {
+    if (!currentResult || !langue.trim()) return;
+    const { dimensions, score_robustesse, statut, stress_test, points_vigilance, recommandations } = currentResult;
+    setTraduisant(true);
+    setErreurTraduction(null);
+    try {
+      setTraduction(await traduireRapport(
+        { dimensions, score_robustesse, statut, stress_test, points_vigilance, recommandations },
+        langue
+      ));
+    } catch (err: any) {
+      setErreurTraduction(err.message || t.traductionEchec);
+    } finally {
+      setTraduisant(false);
+    }
+  };
 
   // Synchronisation locale du portefeuille
   useEffect(() => {
@@ -484,17 +514,47 @@ const App: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2 whitespace-nowrap print:hidden">
                 <button onClick={demarrerReaudit} className={btnSecondary}>{t.btnReaudit}</button>
-                <button onClick={exporterPdf} className={btnSecondary}>{t.btnExportPdf}</button>
+                <button onClick={exporterPdf} className={btnSecondary} disabled={!!traduction}>{t.btnExportPdf}</button>
                 <button onClick={copyAsJson} className={btnSecondary}>{t.btnCopyJson}</button>
                 <button onClick={() => setStep(AppStep.WELCOME)} className={btnPrimary}>{t.btnNewAudit}</button>
               </div>
             </div>
             <Rapport
-              result={currentResult}
+              result={traduction ? { ...currentResult, ...traduction.rapport } : currentResult}
+              libelles={traduction?.libelles}
               parent={portfolio.find(item => item.id === currentResult.parentId)}
               onPriorisation={majPriorisation}
               onVoirMatrice={() => { setVueMatrice(true); setStep(AppStep.PORTFOLIO); }}
             />
+
+            {/* Traduction pour la lecture, sous le rapport */}
+            <section className="space-y-3 rounded-card border border-trait bg-white p-6 md:p-8 print:hidden">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+                  <span className="font-mono text-[0.68rem] font-medium uppercase tracking-label text-gris-meta">{t.traductionLangue}</span>
+                  <input
+                    type="text"
+                    value={langue}
+                    onChange={(e) => setLangue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') lancerTraduction(); }}
+                    maxLength={50}
+                    placeholder={t.traductionPlaceholder}
+                    disabled={traduisant}
+                    className="min-h-11 w-full rounded-btn border-[1.5px] border-trait-fort bg-white px-4 text-15 transition-colors duration-[220ms] ease-cc focus:border-bleu-regle focus:outline-none disabled:opacity-60"
+                  />
+                </label>
+                <button onClick={lancerTraduction} disabled={traduisant || !langue.trim()} className={btnPrimary}>
+                  {traduisant ? t.traductionEnCours : t.btnTraduire}
+                </button>
+                {traduction && (
+                  <button onClick={() => setTraduction(null)} disabled={traduisant} className={btnSecondary}>
+                    {t.btnRevenirFrancais}
+                  </button>
+                )}
+              </div>
+              <p className="text-desc text-gris">{t.traductionAide}</p>
+              {erreurTraduction && <p role="alert" className="text-desc text-rouge">{erreurTraduction}</p>}
+            </section>
           </div>
         )}
 

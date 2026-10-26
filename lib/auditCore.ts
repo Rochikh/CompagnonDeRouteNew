@@ -12,8 +12,8 @@ import { DIMENSIONS, FICHES, PILOTAGE, statutFromScore, DimensionKey } from './d
 import { AuditInput, AuditReport, DimensionResult } from '../types.js';
 
 export const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-v4-flash';
-const CLAUDE_MODEL = 'claude-opus-5-5';
+export const DEEPSEEK_MODEL = 'deepseek-v4-flash';
+export const CLAUDE_MODEL = 'claude-opus-5-5';
 // Raisonnement adaptatif toujours actif sur Opus 5.5 ; `high` est l'équivalent
 // retenu du raisonnement DeepSeek complet. Le défaut de l'API serait `medium`.
 const CLAUDE_EFFORT = 'high';
@@ -22,7 +22,7 @@ const CLAUDE_MAX_TOKENS = 16_000;
 
 type Provider = 'deepseek' | 'claude';
 
-function readProvider(): Provider {
+export function readProvider(): Provider {
   const p = (process.env.AUDIT_PROVIDER ?? 'deepseek').trim().toLowerCase();
   if (p === 'claude' || p === 'deepseek') return p;
   throw new AuditError(

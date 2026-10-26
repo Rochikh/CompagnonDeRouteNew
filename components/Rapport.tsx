@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuditResult } from '../types';
+import { AuditResult, RapportTraduit } from '../types';
 import { DIMENSIONS, FICHES } from '../lib/doctrine';
 import type { DimensionKey } from '../lib/doctrine';
 import RegleGraduee from './RegleGraduee';
@@ -28,6 +28,8 @@ const carte = 'rounded-card border border-trait bg-white p-6 md:p-8';
 
 interface RapportProps {
   result: AuditResult;
+  // Libelles traduits (dimensions, titres de fiches) quand le rapport est affiche traduit.
+  libelles?: RapportTraduit['libelles'];
   // Audit d'origine si celui-ci est un re-audit : active la vue avant/apres.
   parent?: AuditResult;
   // Rappele quand un curseur impact/faisabilite change.
@@ -37,7 +39,7 @@ interface RapportProps {
 }
 
 // Rapport d'audit : chaque champ du contrat API est affiche, rien n'est jete.
-const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoirMatrice }) => {
+const Rapport: React.FC<RapportProps> = ({ result, libelles, parent, onPriorisation, onVoirMatrice }) => {
   const notes = Object.fromEntries(
     DIMENSIONS.map(d => [d.key, result.dimensions[d.key].note])
   ) as Record<DimensionKey, number>;
@@ -57,7 +59,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoi
           <p className="shrink-0 font-mono text-[1.9rem] font-semibold leading-none tracking-titre text-bleu-regle">
             ~{result.stress_test.minutes_estimees}&nbsp;{t.stressTestMin}
           </p>
-          <p className="text-15 text-gris">
+          <p dir="auto" className="text-15 text-gris">
             {result.stress_test.verdict}{' '}
             <span className="whitespace-nowrap font-mono text-[0.75rem] text-gris-meta">
               {t.stressTestPilotage} {result.stress_test.pilotage}
@@ -77,17 +79,17 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoi
               return (
                 <article key={dim.key} className="space-y-2 border-b border-trait py-4.5">
                   <div className="flex items-baseline justify-between gap-4">
-                    <h4 className="font-display text-18 font-bold tracking-[-0.01em]">{dim.label}</h4>
+                    <h4 dir="auto" className="font-display text-18 font-bold tracking-[-0.01em]">{libelles?.dimensions[dim.key] ?? dim.label}</h4>
                     <p className="whitespace-nowrap font-mono text-[0.95rem] font-semibold text-bleu-regle">
                       {d.note}<span className="font-normal text-label text-gris-meta"> / 3</span>
                     </p>
                   </div>
-                  <p className="text-15">{d.justification}</p>
+                  <p dir="auto" className="text-15">{d.justification}</p>
                   {d.preuves && d.preuves.length > 0 && (
                     <div className="space-y-2 pt-1">
                       <p className={champ}>{t.preuvesLabel}</p>
                       {d.preuves.map((p, i) => (
-                        <blockquote key={i} className="border-l-2 border-rouge py-0.5 pl-3.5 text-15 text-gris">
+                        <blockquote key={i} dir="auto" className="border-l-2 border-rouge py-0.5 pl-3.5 text-15 text-gris">
                           «&nbsp;{nettoyerCitation(p)}&nbsp;»
                         </blockquote>
                       ))}
@@ -107,7 +109,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoi
           {result.points_vigilance.map((v, i) => (
             <li key={i} className="flex items-baseline gap-3.5 border-b border-trait py-3">
               <span aria-hidden className="h-0.5 w-3 shrink-0 -translate-y-1 bg-rouge" />
-              <p className="text-15">{v}</p>
+              <p dir="auto" className="text-15">{v}</p>
             </li>
           ))}
         </ul>
@@ -135,7 +137,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoi
                       <span className="rounded-xs bg-bleu-clair px-2 py-0.5 font-mono text-label font-medium uppercase tracking-[0.06em] text-bleu-regle">
                         {reference}
                       </span>
-                      <span className="text-desc font-semibold">{nom ?? rec.fiche}</span>
+                      <span dir="auto" className="text-desc font-semibold">{libelles?.fiches[rec.fiche] ?? nom ?? rec.fiche}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5 font-mono text-label uppercase tracking-label text-gris-meta print:hidden">
                       {t.ficheDeplier}
@@ -151,7 +153,7 @@ const Rapport: React.FC<RapportProps> = ({ result, parent, onPriorisation, onVoi
                       </svg>
                     </span>
                   </span>
-                  <span className="block px-4 py-4 text-15 md:px-6">{rec.action}</span>
+                  <span dir="auto" className="block px-4 py-4 text-15 md:px-6">{rec.action}</span>
                 </summary>
                 <div className="space-y-4 border-t border-dashed border-trait-fort px-4 pb-5 pt-4 md:px-6">
                   {fiche ? (
