@@ -7,6 +7,8 @@ interface RadarChartProps {
   // Conserve pour le contrat du composant : la lecture du statut passe par la
   // regle graduee, le radar reste monochrome (accent unique du systeme).
   statut?: AuditStatut;
+  // Libelles traduits des axes, pour le rendu seul.
+  labels?: Record<DimensionKey, string>;
 }
 
 const SIZE = 340;
@@ -30,7 +32,7 @@ function ringPath(level: number): string {
 // trait porteur 0,5), a la grammaire des pictogrammes du systeme. Surface
 // pleine = robuste. Les etiquettes sont posees en HTML au-dessus du trace :
 // elles restent selectionnables et suivent la meme echelle mono que le reste.
-const RadarChart: React.FC<RadarChartProps> = ({ notes }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ notes, labels }) => {
   const points = DIMENSIONS.map((dim, i) => {
     const note = notes[dim.key] ?? 0;
     return { ...pointAt(i, note), note, label: dim.label, index: i };
@@ -56,7 +58,8 @@ const RadarChart: React.FC<RadarChartProps> = ({ notes }) => {
             className="absolute z-1 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[0.66rem] tracking-[0.04em] text-encre"
             style={{ left: e.left, top: e.top }}
           >
-            {e.label} · {e.note}/3
+            {/* Libelle traduit hors police mono et sans espacement : l'arabe garde ses liaisons. */}
+            {labels ? <bdi className="font-sans tracking-normal">{labels[DIMENSIONS[e.index].key]}</bdi> : e.label} · {e.note}/3
           </span>
         ))}
         <svg

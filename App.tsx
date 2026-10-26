@@ -524,6 +524,7 @@ const App: React.FC = () => {
               libelles={traduction?.libelles}
               statutAffiche={traduction?.statut_affiche}
               pilotageAffiche={traduction?.pilotage_affiche}
+              radarAffiche={traduction?.radar_affiche}
               parent={portfolio.find(item => item.id === currentResult.parentId)}
               onPriorisation={majPriorisation}
               onVoirMatrice={() => { setVueMatrice(true); setStep(AppStep.PORTFOLIO); }}

@@ -68,6 +68,8 @@ export interface RapportTraduit {
   // les valeurs du référentiel (couleurs, logique).
   statut_affiche: string;
   pilotage_affiche: string;
+  // Libellés des axes du radar, pour le rendu seul.
+  radar_affiche: Record<DimensionKey, string>;
 }
 
 export interface Fiche {

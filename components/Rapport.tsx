@@ -33,6 +33,7 @@ interface RapportProps {
   // Statut et pilotage traduits, pour le rendu seul.
   statutAffiche?: string;
   pilotageAffiche?: string;
+  radarAffiche?: RapportTraduit['radar_affiche'];
   // Audit d'origine si celui-ci est un re-audit : active la vue avant/apres.
   parent?: AuditResult;
   // Rappele quand un curseur impact/faisabilite change.
@@ -42,7 +43,7 @@ interface RapportProps {
 }
 
 // Rapport d'audit : chaque champ du contrat API est affiche, rien n'est jete.
-const Rapport: React.FC<RapportProps> = ({ result, libelles, statutAffiche, pilotageAffiche, parent, onPriorisation, onVoirMatrice }) => {
+const Rapport: React.FC<RapportProps> = ({ result, libelles, statutAffiche, pilotageAffiche, radarAffiche, parent, onPriorisation, onVoirMatrice }) => {
   const notes = Object.fromEntries(
     DIMENSIONS.map(d => [d.key, result.dimensions[d.key].note])
   ) as Record<DimensionKey, number>;
@@ -75,7 +76,7 @@ const Rapport: React.FC<RapportProps> = ({ result, libelles, statutAffiche, pilo
       <section className={carte} aria-labelledby="dimensions-titre">
         <Etiquette id="dimensions-titre">{t.dimensionsTitle}</Etiquette>
         <div className="mt-6 grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
-          <RadarChart notes={notes} statut={result.statut} />
+          <RadarChart notes={notes} statut={result.statut} labels={radarAffiche} />
           <div>
             {DIMENSIONS.map(dim => {
               const d = result.dimensions[dim.key];

@@ -127,7 +127,7 @@ export async function traduireRapport(rapport: AuditReport, langue: string): Pro
   }
   if (!response.ok) throw new Error(data?.error || t.traductionEchec);
   if (!looksLikeAuditReport(data?.rapport) || !data?.libelles?.dimensions || !data?.libelles?.fiches
-    || typeof data?.statut_affiche !== 'string' || typeof data?.pilotage_affiche !== 'string') {
+    || typeof data?.statut_affiche !== 'string' || typeof data?.pilotage_affiche !== 'string' || !data?.radar_affiche) {
     throw new Error(t.traductionEchec);
   }
   return data;

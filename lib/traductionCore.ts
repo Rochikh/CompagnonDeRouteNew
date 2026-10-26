@@ -92,6 +92,8 @@ export async function traduireRapport(rapport: unknown, langue: unknown): Promis
       dimensions: Object.fromEntries(DIMENSIONS.map((d, j) => [d.key, avecFrancais(traduits[nbRapport + j], d.label)])) as RapportTraduit['libelles']['dimensions'],
       fiches: Object.fromEntries(fiches.map((k, j) => [k, avecFrancais(traduits[nbRapport + DIMENSIONS.length + j], FICHES[k].name)]))
     },
+    // Axes du radar : nom traduit seul, le terme français figure dans la liste voisine.
+    radar_affiche: Object.fromEntries(DIMENSIONS.map((d, j) => [d.key, traduits[nbRapport + j]])) as RapportTraduit['radar_affiche'],
     statut_affiche: traduits[traduits.length - 2],
     pilotage_affiche: traduits[traduits.length - 1]
   };
