@@ -18,7 +18,7 @@ export const t = {
   btnQuickDesc: "8 questions pour évaluer votre profil de vulnérabilité sans IA.",
   step1Title: "1. Saisie de la consigne",
   step1Placeholder: "Exemple : « Rédigez un rapport de 5 pages sur l'impact de la RSE... »",
-  consigneConfidentialite: "La consigne saisie est transmise à l'API Anthropic (Claude) pour analyse, ou à l'API DeepSeek quand Claude est saturé. Retirez les noms avant de lancer l'audit.",
+  consigneConfidentialite: "La consigne saisie est transmise à l'API DeepSeek pour analyse, ou à l'API Anthropic (Claude) quand DeepSeek est indisponible. Retirez les noms avant de lancer l'audit.",
   btnTranscrireImage: "Transcrire une image",
   imageAide: "Collez ou déposez une image dans la zone de saisie, ou choisissez un fichier. Une page à la fois : chaque transcription s'ajoute à la suite du texte.",
   imageConfidentialite: "L'image est transmise à l'API DeepSeek pour transcription. Masquez les en-têtes et les noms avant de la déposer.",
@@ -120,7 +120,7 @@ export const t = {
   aboutPrivacyDesc1: "Pas de base de données : aucune donnée n'est stockée sur nos serveurs.",
   aboutPrivacyDesc2: "Stockage local : votre portefeuille est enregistré uniquement dans votre propre navigateur.",
   aboutPrivacyDesc3: "Anonymat : l'outil ne nécessite aucune création de compte.",
-  aboutPrivacyDesc4: "Traitement externe : la consigne saisie est transmise à l'API Anthropic (Claude) pour analyse, ou à l'API DeepSeek quand Claude est saturé. Les images déposées pour transcription sont transmises à l'API DeepSeek. Chaque fournisseur traite ces données selon ses propres conditions. Cette application n'en conserve aucune copie. Retirez les noms d'établissement, d'enseignant·e·s et d'apprenant·e·s avant envoi.",
+  aboutPrivacyDesc4: "Traitement externe : la consigne saisie est transmise à l'API DeepSeek pour analyse, ou à l'API Anthropic (Claude) quand DeepSeek est indisponible. Les images déposées pour transcription sont transmises à l'API DeepSeek. Chaque fournisseur traite ces données selon ses propres conditions. Cette application n'en conserve aucune copie. Retirez les noms d'établissement, d'enseignant·e·s et d'apprenant·e·s avant envoi.",
   aboutP2: "Développé par Rochane Kherbouche comme ressource complémentaire à l'ouvrage « Évaluer en formation à l'ère de l'IA générative » (2026).",
   aboutBtnClose: "Fermer",
   copied: "Copié dans le presse-papiers."

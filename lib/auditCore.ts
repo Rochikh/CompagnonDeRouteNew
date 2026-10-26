@@ -39,12 +39,17 @@ function readProvider(): Provider {
 // ne reste rien d'exploitable, donc pas de second appel.
 const TOTAL_BUDGET_MS = 290_000;
 const FIRST_CALL_TIMEOUT_MS = 280_000;
+// Premier appel DeepSeek : 160 s (maximum mesuré 130 s), pour laisser au moins
+// 130 s au repli Claude en cas d'expiration.
+const DEEPSEEK_FIRST_CALL_TIMEOUT_MS = 160_000;
 
 // Expiration d'un appel : traitée comme une tentative échouée, pas comme une erreur fatale.
 class CallTimeout extends Error {}
 // 429 Claude (limite de connexions simultanées du workspace) : l'audit se
 // replie immédiatement sur DeepSeek, sans nouvel appel Claude.
 class ClaudeRateLimited extends Error {}
+// 402, 429 ou 5xx DeepSeek : l'audit se replie sur Claude, sans nouvel appel DeepSeek.
+class DeepSeekUnavailable extends Error {}
 
 export class AuditError extends Error {
   constructor(message: string, public status: number) {
@@ -88,7 +93,8 @@ export function deepSeekHttpError(status: number, errBody: string): AuditError {
 }
 
 export async function runAudit(input: AuditInput): Promise<AuditReport> {
-  // Fournisseur effectif de l'audit : passe de claude à deepseek sur 429 et y reste.
+  // Fournisseur effectif de l'audit : passe de claude à deepseek sur 429, de
+  // deepseek à claude sur 402, 429, 5xx ou expiration, et y reste.
   let provider = readProvider();
   let apiKey = readApiKey(provider === 'claude' ? 'ANTHROPIC_API_KEY' : 'DEEPSEEK_API_KEY');
 
@@ -110,7 +116,15 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
           text = await callDeepSeek(apiKey, input, Math.min(timeoutMs, deadline - Date.now()));
         }
       } else {
-        text = await callDeepSeek(apiKey, input, timeoutMs);
+        try {
+          text = await callDeepSeek(apiKey, input, attempt === 1 ? DEEPSEEK_FIRST_CALL_TIMEOUT_MS : timeoutMs);
+        } catch (e) {
+          if (!(e instanceof DeepSeekUnavailable || e instanceof CallTimeout)) throw e;
+          provider = 'claude';
+          apiKey = readApiKey('ANTHROPIC_API_KEY');
+          console.warn(`Repli sur Claude pour cet audit : ${e instanceof CallTimeout ? 'DeepSeek expiré' : e.message}`);
+          text = await callClaude(apiKey, input, deadline - Date.now());
+        }
       }
     } catch (e) {
       if (!(e instanceof CallTimeout)) throw e;
@@ -156,7 +170,11 @@ async function callDeepSeek(apiKey: string, input: AuditInput, timeoutMs: number
     });
 
     if (!response.ok) {
-      throw deepSeekHttpError(response.status, await response.text());
+      const err = deepSeekHttpError(response.status, await response.text());
+      if (response.status === 402 || response.status === 429 || response.status >= 500) {
+        throw new DeepSeekUnavailable(`DeepSeek ${response.status}`);
+      }
+      throw err;
     }
 
     const data: any = await response.json();
