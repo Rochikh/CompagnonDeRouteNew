@@ -8,7 +8,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import { buildTraductionPrompt } from './prompt.js';
-import { DIMENSIONS, FICHES } from './doctrine.js';
+import { AUDIT_SEUILS, DIMENSIONS, FICHES, PILOTAGE } from './doctrine.js';
 import { AuditError, CLAUDE_MODEL, DEEPSEEK_MODEL, DEEPSEEK_URL, deepSeekHttpError, readApiKey, readProvider } from './auditCore.js';
 import { AuditReport, RapportTraduit } from '../types.js';
 
@@ -48,6 +48,8 @@ function rapportLisible(r: any): r is AuditReport {
       && (r.dimensions[d.key].preuves === undefined
         || (Array.isArray(r.dimensions[d.key].preuves) && r.dimensions[d.key].preuves.every(texte))))
     && texte(r.stress_test?.verdict)
+    && AUDIT_SEUILS.some(s => s.statut === r.statut)
+    && PILOTAGE.includes(r.stress_test.pilotage)
     && Array.isArray(r.points_vigilance) && r.points_vigilance.every(texte)
     && Array.isArray(r.recommandations)
     && r.recommandations.every((rec: any) => texte(rec?.action) && typeof rec.fiche === 'string' && rec.fiche in FICHES);
@@ -68,9 +70,10 @@ export async function traduireRapport(rapport: unknown, langue: unknown): Promis
   const textes: string[] = [];
   parcourir(rapport, s => { textes.push(s); return s; });
   const nbRapport = textes.length;
-  // Noms des dimensions et titres des fiches citées, à la suite du rapport.
+  // Noms des dimensions, titres des fiches citées, puis statut et pilotage
+  // (libellés d'affichage seuls : leurs valeurs restent celles du référentiel).
   const fiches = [...new Set(rapport.recommandations.map(r => r.fiche))];
-  textes.push(...DIMENSIONS.map(d => d.label), ...fiches.map(k => FICHES[k].name));
+  textes.push(...DIMENSIONS.map(d => d.label), ...fiches.map(k => FICHES[k].name), rapport.statut, rapport.stress_test.pilotage);
 
   const traduits = await appelerFournisseur(JSON.stringify({ langue: langue.trim(), textes }), textes.length);
 
@@ -88,7 +91,9 @@ export async function traduireRapport(rapport: unknown, langue: unknown): Promis
     libelles: {
       dimensions: Object.fromEntries(DIMENSIONS.map((d, j) => [d.key, avecFrancais(traduits[nbRapport + j], d.label)])) as RapportTraduit['libelles']['dimensions'],
       fiches: Object.fromEntries(fiches.map((k, j) => [k, avecFrancais(traduits[nbRapport + DIMENSIONS.length + j], FICHES[k].name)]))
-    }
+    },
+    statut_affiche: traduits[traduits.length - 2],
+    pilotage_affiche: traduits[traduits.length - 1]
   };
 }
 

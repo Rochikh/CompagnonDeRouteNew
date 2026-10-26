@@ -64,6 +64,10 @@ export interface RapportTraduit {
     // Par clé de fiche (inchangée), le titre traduit.
     fiches: Record<string, string>;
   };
+  // Libellés traduits pour le rendu seul ; statut et pilotage du rapport restent
+  // les valeurs du référentiel (couleurs, logique).
+  statut_affiche: string;
+  pilotage_affiche: string;
 }
 
 export interface Fiche {

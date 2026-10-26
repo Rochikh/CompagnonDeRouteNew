@@ -506,7 +506,7 @@ const App: React.FC = () => {
                   champs={[
                     ['Date', currentResult.date],
                     ['Score', `${currentResult.score_robustesse}\u00A0/\u00A012`],
-                    ['Statut', currentResult.statut.replace(' ', '\u00A0')],
+                    ['Statut', (traduction?.statut_affiche ?? currentResult.statut).replace(' ', '\u00A0')],
                   ]}
                 />
                 <h2 className="font-display text-34 font-extrabold tracking-section">{t.reportTitle}</h2>
@@ -522,6 +522,8 @@ const App: React.FC = () => {
             <Rapport
               result={traduction ? { ...currentResult, ...traduction.rapport } : currentResult}
               libelles={traduction?.libelles}
+              statutAffiche={traduction?.statut_affiche}
+              pilotageAffiche={traduction?.pilotage_affiche}
               parent={portfolio.find(item => item.id === currentResult.parentId)}
               onPriorisation={majPriorisation}
               onVoirMatrice={() => { setVueMatrice(true); setStep(AppStep.PORTFOLIO); }}

@@ -30,6 +30,9 @@ interface RapportProps {
   result: AuditResult;
   // Libelles traduits (dimensions, titres de fiches) quand le rapport est affiche traduit.
   libelles?: RapportTraduit['libelles'];
+  // Statut et pilotage traduits, pour le rendu seul.
+  statutAffiche?: string;
+  pilotageAffiche?: string;
   // Audit d'origine si celui-ci est un re-audit : active la vue avant/apres.
   parent?: AuditResult;
   // Rappele quand un curseur impact/faisabilite change.
@@ -39,7 +42,7 @@ interface RapportProps {
 }
 
 // Rapport d'audit : chaque champ du contrat API est affiche, rien n'est jete.
-const Rapport: React.FC<RapportProps> = ({ result, libelles, parent, onPriorisation, onVoirMatrice }) => {
+const Rapport: React.FC<RapportProps> = ({ result, libelles, statutAffiche, pilotageAffiche, parent, onPriorisation, onVoirMatrice }) => {
   const notes = Object.fromEntries(
     DIMENSIONS.map(d => [d.key, result.dimensions[d.key].note])
   ) as Record<DimensionKey, number>;
@@ -47,7 +50,7 @@ const Rapport: React.FC<RapportProps> = ({ result, libelles, parent, onPriorisat
   return (
     <div className="space-y-6">
       {/* En-tete : regle graduee (signature), statut et double lecture inclus */}
-      <RegleGraduee score={result.score_robustesse} />
+      <RegleGraduee score={result.score_robustesse} statutAffiche={statutAffiche} />
 
       {/* Re-audit : vue avant/apres avec deltas par dimension */}
       {parent && <Comparaison avant={parent} apres={result} />}
@@ -62,7 +65,7 @@ const Rapport: React.FC<RapportProps> = ({ result, libelles, parent, onPriorisat
           <p dir="auto" className="text-15 text-gris">
             {result.stress_test.verdict}{' '}
             <span className="whitespace-nowrap font-mono text-[0.75rem] text-gris-meta">
-              {t.stressTestPilotage} {result.stress_test.pilotage}
+              {t.stressTestPilotage} <span dir="auto">{pilotageAffiche ?? result.stress_test.pilotage}</span>
             </span>
           </p>
         </div>

@@ -27,13 +27,15 @@ export const MiniRegle: React.FC<{ score: number; className?: string }> = ({ sco
 
 interface RegleGradueeProps {
   score: number;
+  // Libelle traduit du statut, pour le rendu seul : la couleur suit le statut du referentiel.
+  statutAffiche?: string;
 }
 
 // Signature du rapport : carte sur reglure Seyes, chiffre en mono, douze cases
 // remplies jusqu'au score, bandes de seuils sous la regle, statut ecrit en
 // annotation rouge du correcteur. Aucune animation de remplissage : l'etat de
 // base est l'etat final, le rapport s'imprime complet.
-const RegleGraduee: React.FC<RegleGradueeProps> = ({ score }) => {
+const RegleGraduee: React.FC<RegleGradueeProps> = ({ score, statutAffiche }) => {
   const statut = statutFromScore(score);
   const couleur = STATUT_COLORS[statut];
   const seuil = AUDIT_SEUILS.find(s => score >= s.min && score <= s.max)!;
@@ -60,7 +62,7 @@ const RegleGraduee: React.FC<RegleGradueeProps> = ({ score }) => {
             style={{ color: couleur }}
           >
             <span aria-hidden className="h-0.5 w-5 shrink-0" style={{ background: couleur }} />
-            {statut}
+            <span dir="auto">{statutAffiche ?? statut}</span>
           </span>
           <span className="text-desc text-gris">{seuil.action}</span>
         </div>
